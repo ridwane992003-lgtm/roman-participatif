@@ -1,7 +1,20 @@
 
-/* =========================
-   STYLE GENERAL
-========================= */
+/* =================================
+   ROMAN PARTICIPATIF
+   DESIGN PRINCIPAL
+================================= */
+
+:root {
+  --vert: #173d32;
+  --vert-clair: #245747;
+  --or: #c49a45;
+  --beige: #f7f3e9;
+  --blanc: #ffffff;
+  --texte: #26352e;
+  --gris: #718078;
+  --bordure: #e5e0d4;
+  --ombre: 0 8px 25px rgba(23, 61, 50, 0.08);
+}
 
 * {
   margin: 0;
@@ -14,267 +27,328 @@ html {
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background: #f5f1e9;
-  color: #29251f;
-  line-height: 1.6;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--beige);
+  color: var(--texte);
+  line-height: 1.7;
 }
 
-/* =========================
-   EN-TETE
-========================= */
+/* EN-TÊTE */
 
 header {
-  background: #243b32;
-  color: white;
+  background: var(--vert);
+  color: var(--blanc);
   text-align: center;
-  padding: 35px 15px;
+  padding: 25px 15px 20px;
 }
 
-header h1 {
-  font-size: 28px;
-  margin-bottom: 8px;
+.logo {
+  font-size: 25px;
+  font-weight: bold;
+  color: #f1d18c;
+  margin-bottom: 5px;
 }
 
 header p {
-  color: #d9e5dc;
+  color: #e0e9e2;
   font-size: 14px;
 }
 
-/* =========================
-   NAVIGATION
-========================= */
-
-.navigation {
-  background: white;
-  padding: 15px 8px;
+nav {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 16px;
-  box-shadow: 0 2px 8px #00000010;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.navigation a {
-  text-decoration: none;
-  color: #243b32;
-  font-weight: bold;
-  font-size: 13px;
-}
-
-/* =========================
-   CONTENU PRINCIPAL
-========================= */
-
-main {
-  padding: 20px 15px;
-}
-
-/* =========================
-   ACCUEIL
-========================= */
-
-.accueil {
-  background: white;
-  padding: 35px 20px;
-  border-radius: 16px;
-  text-align: center;
-  box-shadow: 0 4px 15px #00000010;
-  margin: 20px auto 35px;
-  max-width: 650px;
-}
-
-.accueil h2 {
-  color: #243b32;
-  font-size: 24px;
-  margin-bottom: 15px;
-}
-
-.accueil p {
-  color: #666;
-  margin-bottom: 25px;
-}
-
-/* =========================
-   BOUTONS
-========================= */
-
-button,
-.bouton {
-  display: inline-block;
-  background: #c18b45;
+nav a {
   color: white;
+  text-decoration: none;
+  padding: 8px 13px;
+  border-radius: 20px;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+nav a:hover {
+  background: var(--or);
+  color: var(--vert);
+}
+
+/* ACCUEIL */
+
+.hero {
+  background: linear-gradient(
+    135deg,
+    #173d32,
+    #326c52
+  );
+  color: white;
+  text-align: center;
+  padding: 75px 20px;
+}
+
+.hero h1 {
+  font-size: 34px;
+  max-width: 700px;
+  margin: auto auto 18px;
+  line-height: 1.3;
+}
+
+.hero p {
+  max-width: 650px;
+  margin: 0 auto 25px;
+  color: #e7eee8;
+}
+
+/* BOUTONS */
+
+.btn,
+button {
+  display: inline-block;
+  background: var(--or);
+  color: #173d32;
   border: none;
-  padding: 13px 20px;
+  padding: 13px 22px;
   border-radius: 8px;
-  font-size: 15px;
   font-weight: bold;
+  font-size: 15px;
   text-decoration: none;
   cursor: pointer;
   transition: 0.3s;
 }
 
 button:hover,
-.bouton:hover {
-  background: #a87534;
+.btn:hover {
+  background: #d9b76d;
+  transform: translateY(-2px);
 }
 
-button:active,
-.bouton:active {
-  transform: scale(0.98);
+.secondaire {
+  background: var(--vert);
+  color: white;
+  margin-top: 10px;
 }
 
-/* =========================
-   SECTIONS
-========================= */
+/* SECTIONS */
 
 .section {
-  max-width: 650px;
+  max-width: 900px;
   margin: 35px auto;
+  padding: 30px;
+  background: var(--blanc);
+  border-radius: 14px;
+  box-shadow: var(--ombre);
 }
 
 .section h2 {
-  color: #243b32;
-  margin-bottom: 18px;
-  font-size: 22px;
+  color: var(--vert);
+  font-size: 25px;
+  margin-bottom: 12px;
+  border-left: 5px solid var(--or);
+  padding-left: 12px;
 }
 
-/* =========================
-   CARTES
-========================= */
-
-.carte {
-  background: white;
-  padding: 22px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  box-shadow: 0 3px 12px #0000000d;
-  border-left: 4px solid #c18b45;
+.section h3 {
+  color: var(--vert);
+  margin: 20px 0 12px;
 }
 
-.carte h3 {
-  color: #243b32;
-  margin-bottom: 10px;
-  font-size: 19px;
+.section > p {
+  color: var(--gris);
+  margin-bottom: 15px;
 }
 
-.carte p {
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.carte strong {
-  color: #c18b45;
-}
-
-/* =========================
-   FORMULAIRES
-========================= */
+/* FORMULAIRES */
 
 form {
-  background: white;
-  padding: 25px 20px;
-  border-radius: 14px;
-  box-shadow: 0 3px 12px #0000000d;
-}
-
-label {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin-top: 15px;
-  margin-bottom: 7px;
-  font-weight: bold;
-  color: #243b32;
 }
 
-input {
+input,
+textarea {
   width: 100%;
   padding: 14px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--bordure);
   border-radius: 8px;
+  background: #fffefa;
   font-size: 15px;
+  color: var(--texte);
+  font-family: inherit;
+}
+
+input:focus,
+textarea:focus {
   outline: none;
-  background: #fafafa;
+  border-color: var(--or);
+  box-shadow: 0 0 0 3px rgba(196, 154, 69, 0.12);
 }
 
-input:focus {
-  border-color: #c18b45;
-  background: white;
+textarea {
+  min-height: 180px;
+  resize: vertical;
 }
 
-form button {
-  width: 100%;
-  margin-top: 18px;
-}
-
-#boutonOublie {
-  background: #243b32;
-}
-
-#boutonDeconnexion {
-  background: #777;
-}
-
-/* =========================
-   MESSAGES
-========================= */
-
-#messageInscription,
-#messageConnexion {
-  margin-top: 15px;
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--texte);
   font-size: 14px;
-  text-align: center;
-  overflow-wrap: anywhere;
 }
 
-/* =========================
-   PIED DE PAGE
-========================= */
+.option input {
+  width: auto;
+  accent-color: var(--vert);
+}
+
+.message {
+  color: var(--vert);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* CHAPITRES */
+
+#listeChapitres {
+  display: grid;
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.chapitre {
+  background: #fffefa;
+  border: 1px solid var(--bordure);
+  border-left: 5px solid var(--or);
+  border-radius: 10px;
+  padding: 22px;
+}
+
+.chapitre h3 {
+  font-size: 21px;
+  color: var(--vert);
+  margin: 0 0 8px;
+}
+
+.auteur {
+  color: var(--gris);
+  font-size: 13px;
+  margin-bottom: 15px;
+}
+
+.contenu-chapitre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 18px;
+}
+
+.actions-chapitre {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--bordure);
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.actions-chapitre button {
+  font-size: 13px;
+  padding: 9px 14px;
+}
+
+.commentaires {
+  margin-top: 20px;
+  border-top: 1px solid var(--bordure);
+  padding-top: 15px;
+}
+
+.commentaire {
+  background: var(--beige);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.reponse {
+  margin: 12px 0 0 20px;
+  background: white;
+  border-left: 3px solid var(--or);
+  padding: 12px;
+  border-radius: 5px;
+}
+
+.commentaires textarea {
+  min-height: 75px;
+}
+
+/* PIED DE PAGE */
 
 footer {
-  background: #243b32;
+  background: var(--vert);
   color: white;
   text-align: center;
-  padding: 25px 15px;
-  margin-top: 40px;
+  padding: 35px 15px;
+  margin-top: 50px;
+}
+
+footer h3 {
+  color: #f1d18c;
+  margin-bottom: 8px;
 }
 
 footer p {
   font-size: 13px;
-  margin: 5px;
+  color: #dce8df;
 }
 
-/* =========================
-   ADAPTATION TELEPHONE
-========================= */
+/* RESPONSIVE */
 
-@media (max-width: 400px) {
+@media (max-width: 600px) {
 
-  header h1 {
-    font-size: 23px;
-  }
-
-  .navigation {
-    gap: 10px;
-  }
-
-  .navigation a {
-    font-size: 12px;
-  }
-
-  .accueil h2 {
+  .logo {
     font-size: 21px;
   }
 
+  nav {
+    gap: 5px;
+  }
+
+  nav a {
+    font-size: 12px;
+    padding: 7px 9px;
+  }
+
+  .hero {
+    padding: 55px 18px;
+  }
+
+  .hero h1 {
+    font-size: 27px;
+  }
+
+  .section {
+    margin: 20px 12px;
+    padding: 20px 16px;
+  }
+
   .section h2 {
-    font-size: 20px;
+    font-size: 21px;
   }
 
-  .carte {
-    padding: 18px;
+  .chapitre {
+    padding: 16px;
   }
 
+  button {
+    width: 100%;
+  }
 }
 
+[hidden] {
+  display: none !important;
+}
