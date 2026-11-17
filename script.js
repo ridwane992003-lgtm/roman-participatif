@@ -28,7 +28,7 @@ import {
 // =====================================
 
 const firebaseConfig = {
-  apiKey: "REMPLACE_PAR_TA_CLE_API",
+  apiKey: "AIzaSyA78F7eAKyoviyEGymQ--gcX1bQ4YV9kyY",
   authDomain: "roman-participatif.firebaseapp.com",
   projectId: "roman-participatif",
   storageBucket: "roman-participatif.firebasestorage.app",
