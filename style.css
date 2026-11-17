@@ -1,0 +1,280 @@
+
+/* =========================
+   STYLE GENERAL
+========================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f1e9;
+  color: #29251f;
+  line-height: 1.6;
+}
+
+/* =========================
+   EN-TETE
+========================= */
+
+header {
+  background: #243b32;
+  color: white;
+  text-align: center;
+  padding: 35px 15px;
+}
+
+header h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+header p {
+  color: #d9e5dc;
+  font-size: 14px;
+}
+
+/* =========================
+   NAVIGATION
+========================= */
+
+.navigation {
+  background: white;
+  padding: 15px 8px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 2px 8px #00000010;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.navigation a {
+  text-decoration: none;
+  color: #243b32;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+/* =========================
+   CONTENU PRINCIPAL
+========================= */
+
+main {
+  padding: 20px 15px;
+}
+
+/* =========================
+   ACCUEIL
+========================= */
+
+.accueil {
+  background: white;
+  padding: 35px 20px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 15px #00000010;
+  margin: 20px auto 35px;
+  max-width: 650px;
+}
+
+.accueil h2 {
+  color: #243b32;
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+.accueil p {
+  color: #666;
+  margin-bottom: 25px;
+}
+
+/* =========================
+   BOUTONS
+========================= */
+
+button,
+.bouton {
+  display: inline-block;
+  background: #c18b45;
+  color: white;
+  border: none;
+  padding: 13px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: bold;
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover,
+.bouton:hover {
+  background: #a87534;
+}
+
+button:active,
+.bouton:active {
+  transform: scale(0.98);
+}
+
+/* =========================
+   SECTIONS
+========================= */
+
+.section {
+  max-width: 650px;
+  margin: 35px auto;
+}
+
+.section h2 {
+  color: #243b32;
+  margin-bottom: 18px;
+  font-size: 22px;
+}
+
+/* =========================
+   CARTES
+========================= */
+
+.carte {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 3px 12px #0000000d;
+  border-left: 4px solid #c18b45;
+}
+
+.carte h3 {
+  color: #243b32;
+  margin-bottom: 10px;
+  font-size: 19px;
+}
+
+.carte p {
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.carte strong {
+  color: #c18b45;
+}
+
+/* =========================
+   FORMULAIRES
+========================= */
+
+form {
+  background: white;
+  padding: 25px 20px;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px #0000000d;
+}
+
+label {
+  display: block;
+  margin-top: 15px;
+  margin-bottom: 7px;
+  font-weight: bold;
+  color: #243b32;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  background: #fafafa;
+}
+
+input:focus {
+  border-color: #c18b45;
+  background: white;
+}
+
+form button {
+  width: 100%;
+  margin-top: 18px;
+}
+
+#boutonOublie {
+  background: #243b32;
+}
+
+#boutonDeconnexion {
+  background: #777;
+}
+
+/* =========================
+   MESSAGES
+========================= */
+
+#messageInscription,
+#messageConnexion {
+  margin-top: 15px;
+  font-size: 14px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* =========================
+   PIED DE PAGE
+========================= */
+
+footer {
+  background: #243b32;
+  color: white;
+  text-align: center;
+  padding: 25px 15px;
+  margin-top: 40px;
+}
+
+footer p {
+  font-size: 13px;
+  margin: 5px;
+}
+
+/* =========================
+   ADAPTATION TELEPHONE
+========================= */
+
+@media (max-width: 400px) {
+
+  header h1 {
+    font-size: 23px;
+  }
+
+  .navigation {
+    gap: 10px;
+  }
+
+  .navigation a {
+    font-size: 12px;
+  }
+
+  .accueil h2 {
+    font-size: 21px;
+  }
+
+  .section h2 {
+    font-size: 20px;
+  }
+
+  .carte {
+    padding: 18px;
+  }
+
+}
+
