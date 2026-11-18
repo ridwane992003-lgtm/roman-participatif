@@ -3,270 +3,218 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#10243b">
-  <meta name="description" content="Roman Participatif : une histoire, des milliers de voix.">
+  <meta name="description" content="Roman Participatif : écrivons ensemble une histoire.">
   <title>Roman Participatif</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <header class="topbar">
-    <a class="brand" href="#accueil" data-page="accueil" aria-label="Accueil Roman Participatif">
-      <span class="brand-icon">📖</span>
-      <span>
-        <strong>Roman Participatif</strong>
-        <small>Une histoire, des milliers de voix.</small>
-      </span>
-    </a>
-    <span class="topbar-label">Littérature collective</span>
-  </header>
+<header class="topbar">
+  <a href="#" class="brand" data-page="accueil">
+    <span class="brand-icon">📖</span>
+    <span>
+      <strong>Roman Participatif</strong>
+      <small>Une histoire, des milliers de voix</small>
+    </span>
+  </a>
+</header>
 
-  <main class="app-main">
+<main class="app-main">
 
-    <!-- ACCUEIL -->
-    <section id="accueil" class="page hero-page">
-      <div class="hero">
-        <div class="eyebrow">LA PLUME EST À VOUS</div>
-        <h1>Écrivons ensemble<br><span>notre histoire.</span></h1>
-        <p>
-          Chaque personne possède une histoire, une pensée, une imagination.
-          Ici, chaque voix peut faire avancer le roman.
-        </p>
-        <button class="primary-btn" type="button" data-page="publication">
-          ✍️ Participer au roman
-        </button>
-        <div class="hero-note">
-          <span>✦</span> Lis · Écris · Partage
-        </div>
+  <!-- ACCUEIL -->
+  <section id="accueil" class="page">
+    <div class="hero">
+      <span class="eyebrow">LA PLUME EST À VOUS</span>
+      <h1>Écrivons ensemble<br><span>notre histoire.</span></h1>
+      <p>Chaque personne possède une histoire, une pensée et une imagination. Ici, chaque voix peut faire avancer le roman.</p>
+      <button class="primary-btn" type="button" data-page="publication">✍️ Participer au roman</button>
+    </div>
+
+    <div class="welcome-card">
+      <div class="welcome-icon">📚</div>
+      <div>
+        <h2>Bienvenue dans votre bibliothèque</h2>
+        <p>Découvrez les histoires de la communauté et partagez vos idées.</p>
       </div>
+    </div>
 
-      <div class="welcome-card">
-        <div class="welcome-symbol">📚</div>
-        <div>
-          <h2>Bienvenue dans votre bibliothèque</h2>
-          <p>Découvrez les histoires de la communauté et apportez votre propre regard.</p>
-        </div>
-      </div>
+    <div class="quick-grid">
+      <button class="quick-card" type="button" data-page="chapitres">
+        <span>📖</span>
+        <strong>Lire les chapitres</strong>
+        <small>Découvrir les contributions</small>
+      </button>
+      <button class="quick-card" type="button" data-page="publication">
+        <span>✍️</span>
+        <strong>Écrire une histoire</strong>
+        <small>Partager votre imagination</small>
+      </button>
+    </div>
+  </section>
 
-      <div class="quick-grid">
-        <button class="quick-card" type="button" data-page="chapitres">
-          <span class="quick-icon">📖</span>
-          <strong>Découvrir les chapitres</strong>
-          <small>Lire les contributions</small>
-        </button>
+  <!-- LECTURE -->
+  <section id="chapitres" class="page" hidden>
+    <div class="section-heading">
+      <span class="eyebrow">LA BIBLIOTHÈQUE</span>
+      <h1>Les chapitres</h1>
+      <p>Les histoires publiées par les membres.</p>
+    </div>
+    <div id="listeChapitres">
+      <p>Chargement des chapitres...</p>
+    </div>
+  </section>
 
-        <button class="quick-card" type="button" data-page="publication">
-          <span class="quick-icon">✍️</span>
-          <strong>Écrire une histoire</strong>
-          <small>Partager vos idées</small>
-        </button>
-      </div>
-    </section>
+  <!-- PUBLICATION -->
+  <section id="publication" class="page" hidden>
+    <div class="section-heading">
+      <span class="eyebrow">ESPACE D'ÉCRITURE</span>
+      <h1>Publier un chapitre</h1>
+      <p>Partage ton histoire avec la communauté.</p>
+    </div>
 
-    <!-- LECTURE -->
-    <section id="chapitres" class="page section" hidden>
-      <div class="section-heading">
-        <span class="eyebrow">LA BIBLIOTHÈQUE</span>
-        <h1>Les chapitres du roman</h1>
-        <p>Découvrez les idées et les histoires des participants.</p>
-      </div>
+    <form id="formChapitre" class="form-card">
+      <label for="titreChapitre">Titre du chapitre</label>
+      <input id="titreChapitre" type="text" maxlength="150"
+        placeholder="Donne un titre à ton chapitre" required>
 
-      <div id="listeChapitres">
-        <p>Les chapitres apparaîtront ici.</p>
-      </div>
-    </section>
+      <label for="texteChapitre">Ton texte</label>
+      <textarea id="texteChapitre" minlength="10"
+        placeholder="Écris ici ton chapitre ou ton point de vue..."
+        required></textarea>
 
-    <!-- PUBLICATION -->
-    <section id="publication" class="page section" hidden>
-      <div class="section-heading">
-        <span class="eyebrow">VOTRE ESPACE D'ÉCRITURE</span>
-        <h1>Écrire un nouveau chapitre</h1>
-        <p>Connecte-toi pour partager ta contribution.</p>
-      </div>
+      <label class="check-line">
+        <input type="checkbox" id="modeAnonyme">
+        Publier sous le nom « Auteur anonyme »
+      </label>
 
-      <form id="formChapitre" class="form-card">
-        <label for="titreChapitre">Titre du chapitre</label>
-        <input
-          id="titreChapitre"
-          type="text"
-          placeholder="Donne un titre à ton chapitre"
-          required
-          maxlength="120"
-        >
+      <button class="primary-btn" type="submit">Publier mon chapitre</button>
+      <p id="messageChapitre" class="message" aria-live="polite"></p>
+    </form>
+  </section>
 
-        <label for="texteChapitre">Ton texte</label>
-        <textarea
-          id="texteChapitre"
-          placeholder="Écris ici ton chapitre ou ton point de vue..."
-          required
-          minlength="10"
-        ></textarea>
+  <!-- COMMUNAUTÉ -->
+  <section id="communaute" class="page" hidden>
+    <div class="section-heading">
+      <span class="eyebrow">ENSEMBLE</span>
+      <h1>La communauté</h1>
+      <p>Un espace pour les lecteurs et les auteurs.</p>
+    </div>
+    <div class="feature-card">
+      <div class="welcome-icon">💬</div>
+      <h2>Fais entendre ta voix</h2>
+      <p>Lis les chapitres, apprécie les contributions et échange avec les autres membres.</p>
+      <button class="secondary-btn" type="button" data-page="chapitres">Découvrir les chapitres</button>
+    </div>
+  </section>
 
-        <label class="option">
-          <input type="checkbox" id="modeAnonyme">
-          <span>Publier sous le nom « Auteur anonyme »</span>
-        </label>
+  <!-- COMPTE / AUTHENTIFICATION -->
+  <section id="compte" class="page auth-page" hidden>
+    <div class="auth-container">
+      <div class="auth-logo">📖</div>
+      <h1>Bienvenue</h1>
+      <p class="auth-description">Connectez-vous à Roman Participatif pour continuer votre lecture.</p>
 
-        <button class="primary-btn" type="submit">
-          Publier mon chapitre
-        </button>
+      <!-- CONNEXION -->
+      <div id="zoneConnexion" class="auth-box">
+        <form id="formConnexion">
+          <label for="emailConnexion">Adresse e-mail</label>
+          <input id="emailConnexion" type="email"
+            placeholder="Entrez votre adresse e-mail"
+            autocomplete="email" required>
 
-        <p id="messageChapitre" class="message" aria-live="polite"></p>
-      </form>
-    </section>
-
-    <!-- COMMUNAUTÉ -->
-    <section id="communaute" class="page section" hidden>
-      <div class="section-heading">
-        <span class="eyebrow">ENSEMBLE, NOUS ÉCRIVONS</span>
-        <h1>La communauté</h1>
-        <p>Un espace pour les lecteurs, les auteurs et toutes les imaginations.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">💬</div>
-        <h2>Partageons nos idées</h2>
-        <p>
-          Retrouvez les contributions des membres dans la bibliothèque
-          et échangez autour des histoires.
-        </p>
-        <button class="secondary-btn" type="button" data-page="chapitres">
-          Voir les chapitres
-        </button>
-      </div>
-    </section>
-
-    <!-- COMPTE -->
-    <section id="compte" class="page section" hidden>
-      <div class="section-heading">
-        <span class="eyebrow">VOTRE ESPACE PERSONNEL</span>
-        <h1>Mon compte</h1>
-        <p>Connecte-toi ou crée ton compte pour participer au roman.</p>
-      </div>
-
-      <div class="account-grid">
-
-        <div id="zoneInscription" class="form-card">
-          <h2>Créer un compte</h2>
-
-          <form id="formInscription">
-            <label for="pseudo">Ton pseudonyme</label>
-            <input
-              id="pseudo"
-              type="text"
-              placeholder="Ton pseudonyme"
-              required
-              minlength="3"
-            >
-
-            <label for="emailInscription">Adresse e-mail</label>
-            <input
-              id="emailInscription"
-              type="email"
-              placeholder="Adresse e-mail"
-              required
-            >
-
-            <label for="motDePasseInscription">Mot de passe</label>
-            <input
-              id="motDePasseInscription"
-              type="password"
-              placeholder="6 caractères minimum"
-              required
-              minlength="6"
-            >
-
-            <button class="primary-btn" type="submit">
-              S'inscrire
-            </button>
-          </form>
-
-          <p id="messageInscription" class="message" aria-live="polite"></p>
-        </div>
-
-        <div id="zoneConnexion" class="form-card">
-          <h2>Déjà membre ?</h2>
-
-          <form id="formConnexion">
-            <label for="emailConnexion">Adresse e-mail</label>
-            <input
-              id="emailConnexion"
-              type="email"
-              placeholder="Adresse e-mail"
-              required
-            >
-
+          <div id="zoneMotDePasse">
             <label for="motDePasseConnexion">Mot de passe</label>
-            <input
-              id="motDePasseConnexion"
-              type="password"
-              placeholder="Ton mot de passe"
-              required
-            >
+            <input id="motDePasseConnexion" type="password"
+              placeholder="Entrez votre mot de passe"
+              autocomplete="current-password" required>
+          </div>
 
-            <button class="primary-btn" type="submit">
-              Se connecter
-            </button>
-          </form>
+          <button class="primary-btn auth-submit" type="submit">Se connecter</button>
+        </form>
 
-          <button type="button" id="boutonOublie" class="text-btn">
-            Mot de passe oublié ?
+        <button id="boutonOublie" class="text-btn" type="button">
+          Adresse e-mail ou mot de passe oublié ?
+        </button>
+
+        <p id="messageConnexion" class="message" aria-live="polite"></p>
+
+        <div class="auth-bottom">
+          <button id="boutonAfficherInscription" class="text-btn" type="button">
+            Créer un compte
           </button>
-
-          <p id="messageConnexion" class="message" aria-live="polite"></p>
         </div>
-
       </div>
 
+      <!-- INSCRIPTION -->
+      <div id="zoneInscription" class="auth-box" hidden>
+        <h2>Créer un compte</h2>
+        <form id="formInscription">
+          <label for="pseudo">Pseudonyme</label>
+          <input id="pseudo" type="text" minlength="3" maxlength="30"
+            placeholder="Choisissez un pseudonyme" required>
+
+          <label for="emailInscription">Adresse e-mail</label>
+          <input id="emailInscription" type="email"
+            placeholder="Votre adresse e-mail" required>
+
+          <label for="motDePasseInscription">Mot de passe</label>
+          <input id="motDePasseInscription" type="password" minlength="6"
+            placeholder="6 caractères minimum" required>
+
+          <button class="primary-btn" type="submit">Créer mon compte</button>
+        </form>
+        <button id="boutonRetourConnexion" class="text-btn" type="button">
+          J'ai déjà un compte
+        </button>
+        <p id="messageInscription" class="message" aria-live="polite"></p>
+      </div>
+
+      <!-- MEMBRE CONNECTÉ -->
       <div id="zoneMembre" class="member-card" hidden>
-        <div class="feature-icon">👋</div>
-        <h2>Bienvenue !</h2>
+        <div class="welcome-icon">👋</div>
+        <h2>Bienvenue parmi nous !</h2>
         <p id="nomMembre"></p>
-        <button id="boutonDeconnexion" type="button" class="secondary-btn">
+        <button class="primary-btn" type="button" data-page="accueil">
+          Entrer dans l'application
+        </button>
+        <button id="boutonDeconnexion" class="text-btn" type="button">
           Se déconnecter
         </button>
       </div>
-    </section>
 
-  </main>
+      <p class="auth-footer">Votre espace de lecture et d'écriture vous attend.</p>
+    </div>
+  </section>
 
-  <footer class="site-footer">
-    <strong>Roman Participatif</strong>
-    <p>Une communauté, une histoire collective.</p>
-    <small>© 2026 Roman Participatif</small>
-  </footer>
+</main>
 
-  <!-- NAVIGATION EN BAS -->
-  <nav class="bottom-nav" aria-label="Navigation principale">
+<footer class="site-footer">
+  <strong>Roman Participatif</strong>
+  <p>Une communauté, une histoire collective.</p>
+  <small>© 2026 Roman Participatif</small>
+</footer>
 
-    <button type="button" class="nav-item active" data-page="accueil" aria-current="page">
-      <span class="nav-icon">⌂</span>
-      <span>Accueil</span>
-    </button>
+<!-- NAVIGATION FIXE -->
+<nav class="bottom-nav" aria-label="Navigation principale">
+  <button class="nav-item active" type="button" data-page="accueil">
+    <span class="nav-icon">⌂</span><span>Accueil</span>
+  </button>
+  <button class="nav-item" type="button" data-page="chapitres">
+    <span class="nav-icon">▤</span><span>Lire</span>
+  </button>
+  <button class="nav-item nav-write" type="button" data-page="publication">
+    <span class="nav-icon">＋</span><span>Publier</span>
+  </button>
+  <button class="nav-item" type="button" data-page="communaute">
+    <span class="nav-icon">♧</span><span>Communauté</span>
+  </button>
+  <button class="nav-item" type="button" data-page="compte">
+    <span class="nav-icon">○</span><span>Compte</span>
+  </button>
+</nav>
 
-    <button type="button" class="nav-item" data-page="chapitres">
-      <span class="nav-icon">▤</span>
-      <span>Lire</span>
-    </button>
-
-    <button type="button" class="nav-item nav-write" data-page="publication">
-      <span class="nav-icon">＋</span>
-      <span>Publier</span>
-    </button>
-
-    <button type="button" class="nav-item" data-page="communaute">
-      <span class="nav-icon">♧</span>
-      <span>Communauté</span>
-    </button>
-
-    <button type="button" class="nav-item" data-page="compte">
-      <span class="nav-icon">○</span>
-      <span>Compte</span>
-    </button>
-
-  </nav>
-
-  <script type="module" src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
