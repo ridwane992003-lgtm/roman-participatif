@@ -24,11 +24,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 // ======================================
-// 1. CONFIGURATION FIREBASE
+// 1. FIREBASE
 // ======================================
-
-// IMPORTANT : remplace ce bloc par ton bloc firebaseConfig
-// actuel, avec les mêmes valeurs que dans ton ancien script.js.
 
 const firebaseConfig = {
   apiKey: "AIzaSyA78F7eAKyoviyEGymQ--gcX1bQ4YV9kyY",
@@ -45,6 +42,8 @@ const db = getFirestore(app);
 
 let utilisateurActuel = null;
 let profilActuel = null;
+let chargementTermine = false;
+let etapeConnexion = 1;
 
 // ======================================
 // 2. OUTILS
@@ -54,22 +53,20 @@ function element(id) {
   return document.getElementById(id);
 }
 
-function afficherMessage(id, message) {
+function message(id, texte) {
   const zone = element(id);
-  if (zone) zone.textContent = message;
+  if (zone) zone.textContent = texte;
 }
 
 function creerElement(tag, classe, texte) {
   const el = document.createElement(tag);
-
   if (classe) el.className = classe;
   if (texte !== undefined) el.textContent = texte;
-
   return el;
 }
 
 // ======================================
-// 3. NAVIGATION ENTRE LES CINQ MENUS
+// 3. NAVIGATION
 // ======================================
 
 const pages = [
@@ -83,23 +80,29 @@ const pages = [
 function afficherPage(nomPage) {
   if (!pages.includes(nomPage)) return;
 
+  // Les pages réservées aux membres sont protégées.
+  const pagesProtegees = [
+    "chapitres",
+    "publication",
+    "communaute"
+  ];
+
+  if (!utilisateurActuel && pagesProtegees.includes(nomPage)) {
+    nomPage = "compte";
+    message("messageConnexion", "Connecte-toi pour accéder à cet espace.");
+  }
+
   pages.forEach((id) => {
     const page = element(id);
     if (page) page.hidden = id !== nomPage;
   });
 
-  document.querySelectorAll("[data-page]").forEach((bouton) => {
+  document.querySelectorAll(".nav-item").forEach((bouton) => {
     const actif = bouton.dataset.page === nomPage;
+    bouton.classList.toggle("active", actif);
 
-    if (bouton.classList.contains("nav-item")) {
-      bouton.classList.toggle("active", actif);
-
-      if (actif) {
-        bouton.setAttribute("aria-current", "page");
-      } else {
-        bouton.removeAttribute("aria-current");
-      }
-    }
+    if (actif) bouton.setAttribute("aria-current", "page");
+    else bouton.removeAttribute("aria-current");
   });
 
   if (nomPage === "chapitres") {
@@ -116,7 +119,39 @@ document.querySelectorAll("[data-page]").forEach((bouton) => {
 });
 
 // ======================================
-// 4. INSCRIPTION
+// 4. AFFICHAGE DES FORMULAIRES
+// ======================================
+
+function afficherConnexion() {
+  element("zoneConnexion").hidden = false;
+  element("zoneInscription").hidden = true;
+  element("zoneMembre").hidden = true;
+
+  element("zoneMotDePasse").hidden = true;
+  element("motDePasseConnexion").required = false;
+  element("boutonSuivant")?.remove();
+
+  const bouton = element("formConnexion")?.querySelector(
+    'button[type="submit"]'
+  );
+
+  if (bouton) bouton.textContent = "Suivant";
+
+  etapeConnexion = 1;
+}
+
+element("boutonAfficherInscription")?.addEventListener("click", () => {
+  element("zoneConnexion").hidden = true;
+  element("zoneInscription").hidden = false;
+  message("messageInscription", "");
+});
+
+element("boutonRetourConnexion")?.addEventListener("click", () => {
+  afficherConnexion();
+});
+
+// ======================================
+// 5. INSCRIPTION
 // ======================================
 
 element("formInscription")?.addEventListener("submit", async (e) => {
@@ -126,11 +161,12 @@ element("formInscription")?.addEventListener("submit", async (e) => {
   const email = element("emailInscription").value.trim();
   const motDePasse = element("motDePasseInscription").value;
 
-  try {
-    if (pseudo.length < 3 || pseudo.length > 30) {
-      throw new Error("Le pseudonyme doit contenir entre 3 et 30 caractères.");
-    }
+  if (pseudo.length < 3 || pseudo.length > 30) {
+    message("messageInscription", "Le pseudonyme doit contenir entre 3 et 30 caractères.");
+    return;
+  }
 
+  try {
     const resultat = await createUserWithEmailAndPassword(
       auth,
       email,
@@ -144,74 +180,85 @@ element("formInscription")?.addEventListener("submit", async (e) => {
       createdAt: serverTimestamp()
     });
 
-    afficherMessage(
-      "messageInscription",
-      "Bienvenue ! Ton inscription est réussie."
-    );
+    message("messageInscription", "Compte créé avec succès !");
 
-    e.target.reset();
+    // Le changement d'état Firebase enverra le membre à l'accueil.
 
   } catch (erreur) {
     console.error(erreur);
-    afficherMessage("messageInscription", "Erreur : " + erreur.message);
+    message("messageInscription", "Erreur : " + erreur.message);
   }
 });
 
 // ======================================
-// 5. CONNEXION
+// 6. CONNEXION EN DEUX ÉTAPES
 // ======================================
 
 element("formConnexion")?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const email = element("emailConnexion").value.trim();
-  const motDePasse = element("motDePasseConnexion").value;
+  const motDePasse = element("motDePasseConnexion");
+
+  if (etapeConnexion === 1) {
+    if (!email) {
+      message("messageConnexion", "Entre ton adresse e-mail.");
+      return;
+    }
+
+    element("zoneMotDePasse").hidden = false;
+    motDePasse.required = true;
+
+    const bouton = element("formConnexion").querySelector(
+      'button[type="submit"]'
+    );
+
+    if (bouton) bouton.textContent = "Se connecter";
+
+    etapeConnexion = 2;
+    motDePasse.focus();
+    message("messageConnexion", "");
+    return;
+  }
 
   try {
-    await signInWithEmailAndPassword(auth, email, motDePasse);
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      motDePasse.value
+    );
 
-    afficherMessage("messageConnexion", "Connexion réussie !");
-    e.target.reset();
+    // onAuthStateChanged dirige automatiquement vers Accueil.
 
   } catch (erreur) {
     console.error(erreur);
-    afficherMessage(
-      "messageConnexion",
-      "Adresse e-mail ou mot de passe incorrect."
-    );
+    message("messageConnexion", "Adresse e-mail ou mot de passe incorrect.");
   }
 });
 
 // ======================================
-// 6. MOT DE PASSE OUBLIÉ
+// 7. MOT DE PASSE OUBLIÉ
 // ======================================
 
 element("boutonOublie")?.addEventListener("click", async () => {
   const email = element("emailConnexion").value.trim();
 
   if (!email) {
-    afficherMessage("messageConnexion", "Entre ton adresse e-mail.");
+    message("messageConnexion", "Entre ton adresse e-mail d'abord.");
     return;
   }
 
   try {
     await sendPasswordResetEmail(auth, email);
-
-    afficherMessage(
-      "messageConnexion",
-      "Vérifie ta boîte e-mail pour réinitialiser ton mot de passe."
-    );
-
+    message("messageConnexion", "Un lien de réinitialisation a été envoyé par e-mail.");
   } catch (erreur) {
-    afficherMessage(
-      "messageConnexion",
-      "Impossible d'envoyer l'e-mail."
-    );
+    console.error(erreur);
+    message("messageConnexion", "Impossible d'envoyer le lien. Vérifie ton adresse.");
   }
 });
 
 // ======================================
-// 7. ÉTAT DE CONNEXION
+// 8. ÉTAT DE CONNEXION
 // ======================================
 
 onAuthStateChanged(auth, async (user) => {
@@ -224,73 +271,71 @@ onAuthStateChanged(auth, async (user) => {
 
       if (profil.exists()) {
         profilActuel = profil.data();
+      } else {
+        console.error("Profil utilisateur introuvable dans Firestore.");
       }
+
     } catch (erreur) {
-      console.error("Erreur de profil :", erreur);
+      console.error("Erreur de chargement du profil :", erreur);
     }
 
-    if (element("zoneInscription")) {
-      element("zoneInscription").hidden = true;
-    }
+    element("zoneConnexion").hidden = true;
+    element("zoneInscription").hidden = true;
+    element("zoneMembre").hidden = false;
 
-    if (element("zoneConnexion")) {
-      element("zoneConnexion").hidden = true;
-    }
+    element("nomMembre").textContent =
+      "Connecté sous le pseudonyme : " +
+      (profilActuel?.username || "Membre");
 
-    if (element("zoneMembre")) {
-      element("zoneMembre").hidden = false;
-    }
+    // CONNEXION RÉUSSIE : DIRECTION AUTOMATIQUE À L'ACCUEIL
+    afficherPage("accueil");
 
-    if (element("nomMembre")) {
-      element("nomMembre").textContent =
-        "Connecté sous le pseudonyme : " +
-        (profilActuel?.username || "Membre");
-    }
+    // Recharge les chapitres pour le membre connecté.
+    await afficherChapitres();
 
   } else {
-    if (element("zoneInscription")) {
-      element("zoneInscription").hidden = false;
-    }
+    element("zoneMembre").hidden = true;
+    afficherConnexion();
 
-    if (element("zoneConnexion")) {
-      element("zoneConnexion").hidden = false;
-    }
+    // DÉCONNEXION : RETOUR À L'ÉCRAN DE CONNEXION
+    afficherPage("compte");
 
-    if (element("zoneMembre")) {
-      element("zoneMembre").hidden = true;
+    // Ne laisse pas les anciennes publications visibles.
+    const liste = element("listeChapitres");
+    if (liste) {
+      liste.replaceChildren(
+        creerElement("p", "", "Connecte-toi pour lire les chapitres.")
+      );
     }
   }
 
-  // Recharge les publications après connexion ou déconnexion.
-  afficherChapitres();
+  chargementTermine = true;
 });
 
 // ======================================
-// 8. DÉCONNEXION
+// 9. DÉCONNEXION
 // ======================================
 
 element("boutonDeconnexion")?.addEventListener("click", async () => {
   try {
     await signOut(auth);
-    alert("Tu es déconnecté.");
+    message("messageConnexion", "Tu es déconnecté.");
   } catch (erreur) {
     console.error(erreur);
-    alert("Erreur pendant la déconnexion.");
+    alert("La déconnexion a échoué.");
   }
 });
 
 // ======================================
-// 9. PUBLIER UN CHAPITRE
+// 10. PUBLIER UN CHAPITRE
 // ======================================
 
 element("formChapitre")?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   if (!utilisateurActuel || !profilActuel) {
-    afficherMessage(
-      "messageChapitre",
-      "Connecte-toi avant de publier."
-    );
+    message("messageChapitre", "Connecte-toi avant de publier.");
+    afficherPage("compte");
     return;
   }
 
@@ -299,10 +344,7 @@ element("formChapitre")?.addEventListener("submit", async (e) => {
   const anonyme = element("modeAnonyme").checked;
 
   if (titre.length < 2 || contenu.length < 10) {
-    afficherMessage(
-      "messageChapitre",
-      "Ajoute un titre et un texte suffisamment long."
-    );
+    message("messageChapitre", "Ajoute un titre et un texte d'au moins 10 caractères.");
     return;
   }
 
@@ -311,43 +353,38 @@ element("formChapitre")?.addEventListener("submit", async (e) => {
       title: titre,
       content: contenu,
       authorId: utilisateurActuel.uid,
-      authorName: anonyme
-        ? "Auteur anonyme"
-        : profilActuel.username,
+      authorName: anonyme ? "Auteur anonyme" : profilActuel.username,
       anonymous: anonyme,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    afficherMessage(
-      "messageChapitre",
-      "Ton chapitre a été publié avec succès !"
-    );
-
+    message("messageChapitre", "Ton chapitre a été publié avec succès !");
     e.target.reset();
 
-    // Afficher immédiatement le nouveau chapitre.
     await afficherChapitres();
     afficherPage("chapitres");
 
   } catch (erreur) {
     console.error("Erreur de publication :", erreur);
-
-    afficherMessage(
-      "messageChapitre",
-      "Publication impossible. Vérifie les règles Firestore."
-    );
+    message("messageChapitre", "Publication impossible. Vérifie les règles Firestore.");
   }
 });
 
 // ======================================
-// 10. AFFICHER TOUS LES CHAPITRES
+// 11. AFFICHER LES CHAPITRES
 // ======================================
 
 async function afficherChapitres() {
   const liste = element("listeChapitres");
-
   if (!liste) return;
+
+  if (!utilisateurActuel) {
+    liste.replaceChildren(
+      creerElement("p", "", "Connecte-toi pour lire les chapitres.")
+    );
+    return;
+  }
 
   liste.replaceChildren(
     creerElement("p", "", "Chargement des chapitres...")
@@ -392,61 +429,50 @@ async function afficherChapitres() {
       );
 
       carte.appendChild(
-        creerElement(
-          "div",
-          "contenu-chapitre",
-          chapitre.content || ""
-        )
+        creerElement("div", "contenu-chapitre", chapitre.content || "")
       );
 
-      // ==================================
-      // 11. LIKES
-      // ==================================
-
+      // LIKES
       const actions = creerElement("div", "actions-chapitre");
       const boutonLike = creerElement("button", "", "♡ J'aime");
       boutonLike.type = "button";
 
-      if (utilisateurActuel) {
-        const likeRef = doc(
-          db,
-          "chapters",
-          chapitre.id,
-          "likes",
-          utilisateurActuel.uid
-        );
+      const likeRef = doc(
+        db,
+        "chapters",
+        chapitre.id,
+        "likes",
+        utilisateurActuel.uid
+      );
 
-        const likeExiste = await getDoc(likeRef);
+      const likeExiste = await getDoc(likeRef);
 
-        if (likeExiste.exists()) {
-          boutonLike.textContent = "♥ J'aime";
-        }
-
-        boutonLike.addEventListener("click", async () => {
-          try {
-            const verification = await getDoc(likeRef);
-
-            if (verification.exists()) {
-              await deleteDoc(likeRef);
-            } else {
-              await setDoc(likeRef, {
-                userId: utilisateurActuel.uid,
-                createdAt: serverTimestamp()
-              });
-            }
-
-            afficherChapitres();
-
-          } catch (erreur) {
-            console.error(erreur);
-            alert("Impossible d'enregistrer ton appréciation.");
-          }
-        });
-
-      } else {
-        boutonLike.disabled = true;
-        boutonLike.textContent = "Connecte-toi pour aimer";
+      if (likeExiste.exists()) {
+        boutonLike.textContent = "♥ J'aime";
       }
+
+      boutonLike.addEventListener("click", async () => {
+        if (!utilisateurActuel) return;
+
+        try {
+          const verification = await getDoc(likeRef);
+
+          if (verification.exists()) {
+            await deleteDoc(likeRef);
+          } else {
+            await setDoc(likeRef, {
+              userId: utilisateurActuel.uid,
+              createdAt: serverTimestamp()
+            });
+          }
+
+          await afficherChapitres();
+
+        } catch (erreur) {
+          console.error(erreur);
+          alert("Impossible d'enregistrer ton appréciation.");
+        }
+      });
 
       actions.appendChild(boutonLike);
 
@@ -460,41 +486,20 @@ async function afficherChapitres() {
 
       carte.appendChild(actions);
 
-      // ==================================
-      // 12. MODIFIER ET SUPPRIMER
-      // ==================================
-
-      if (
-        utilisateurActuel &&
-        utilisateurActuel.uid === chapitre.authorId
-      ) {
-        const boutonModifier = creerElement(
-          "button",
-          "secondaire",
-          "Modifier"
-        );
+      // MODIFIER / SUPPRIMER SON PROPRE CHAPITRE
+      if (utilisateurActuel.uid === chapitre.authorId) {
+        const boutonModifier = creerElement("button", "", "Modifier");
         boutonModifier.type = "button";
 
         boutonModifier.addEventListener("click", async () => {
-          const nouveauTitre = prompt(
-            "Nouveau titre :",
-            chapitre.title
-          );
-
+          const nouveauTitre = prompt("Nouveau titre :", chapitre.title);
           if (nouveauTitre === null) return;
 
-          const nouveauTexte = prompt(
-            "Nouveau contenu :",
-            chapitre.content
-          );
-
+          const nouveauTexte = prompt("Nouveau texte :", chapitre.content);
           if (nouveauTexte === null) return;
 
-          if (
-            !nouveauTitre.trim() ||
-            nouveauTexte.trim().length < 10
-          ) {
-            alert("Le titre et le contenu sont obligatoires.");
+          if (!nouveauTitre.trim() || nouveauTexte.trim().length < 10) {
+            alert("Le titre et le texte sont obligatoires.");
             return;
           }
 
@@ -505,30 +510,22 @@ async function afficherChapitres() {
               updatedAt: serverTimestamp()
             });
 
-            afficherChapitres();
-
+            await afficherChapitres();
           } catch (erreur) {
             console.error(erreur);
             alert("Modification impossible.");
           }
         });
 
-        const boutonSupprimer = creerElement(
-          "button",
-          "secondaire",
-          "Supprimer"
-        );
+        const boutonSupprimer = creerElement("button", "", "Supprimer");
         boutonSupprimer.type = "button";
 
         boutonSupprimer.addEventListener("click", async () => {
-          if (!confirm("Veux-tu vraiment supprimer ce chapitre ?")) {
-            return;
-          }
+          if (!confirm("Veux-tu vraiment supprimer ce chapitre ?")) return;
 
           try {
             await deleteDoc(doc(db, "chapters", chapitre.id));
-            afficherChapitres();
-
+            await afficherChapitres();
           } catch (erreur) {
             console.error(erreur);
             alert("Suppression impossible.");
@@ -539,12 +536,8 @@ async function afficherChapitres() {
         carte.appendChild(boutonSupprimer);
       }
 
-      // ==================================
-      // 13. COMMENTAIRES
-      // ==================================
-
+      // COMMENTAIRES
       const zoneCommentaires = creerElement("div", "commentaires");
-
       zoneCommentaires.appendChild(
         creerElement("h4", "", "Commentaires")
       );
@@ -558,32 +551,18 @@ async function afficherChapitres() {
         ...d.data()
       }));
 
-      commentaires.sort((a, b) => {
-        return (
-          (a.createdAt?.toMillis?.() || 0) -
-          (b.createdAt?.toMillis?.() || 0)
-        );
-      });
-
       for (const commentaire of commentaires) {
         const bloc = creerElement("div", "commentaire");
 
         bloc.appendChild(
-          creerElement(
-            "strong",
-            "",
-            commentaire.authorName || "Membre"
-          )
+          creerElement("strong", "", commentaire.authorName || "Membre")
         );
 
         bloc.appendChild(
           creerElement("p", "", commentaire.text || "")
         );
 
-        // ==================================
-        // 14. RÉPONSES AUX COMMENTAIRES
-        // ==================================
-
+        // RÉPONSES
         const resultatReponses = await getDocs(
           collection(
             db,
@@ -595,16 +574,12 @@ async function afficherChapitres() {
           )
         );
 
-        for (const reponseDoc of resultatReponses.docs) {
+        resultatReponses.forEach((reponseDoc) => {
           const reponse = reponseDoc.data();
           const blocReponse = creerElement("div", "reponse");
 
           blocReponse.appendChild(
-            creerElement(
-              "strong",
-              "",
-              reponse.authorName || "Membre"
-            )
+            creerElement("strong", "", reponse.authorName || "Membre")
           );
 
           blocReponse.appendChild(
@@ -612,93 +587,38 @@ async function afficherChapitres() {
           );
 
           bloc.appendChild(blocReponse);
-        }
+        });
 
-        if (utilisateurActuel && profilActuel) {
-          const formulaireReponse = document.createElement("form");
-          const champReponse = document.createElement("textarea");
+        // FORMULAIRE DE RÉPONSE
+        const formulaireReponse = document.createElement("form");
+        const champReponse = document.createElement("textarea");
+        champReponse.placeholder = "Écrire une réponse...";
+        champReponse.required = true;
 
-          champReponse.placeholder = "Écrire une réponse...";
-          champReponse.required = true;
+        const boutonReponse = creerElement("button", "", "Répondre");
+        boutonReponse.type = "submit";
 
-          const boutonReponse = creerElement(
-            "button",
-            "secondary-btn",
-            "Répondre"
-          );
-          boutonReponse.type = "submit";
+        formulaireReponse.appendChild(champReponse);
+        formulaireReponse.appendChild(boutonReponse);
 
-          formulaireReponse.appendChild(champReponse);
-          formulaireReponse.appendChild(boutonReponse);
-
-          formulaireReponse.addEventListener("submit", async (e) => {
-            e.preventDefault();
-
-            const texte = champReponse.value.trim();
-            if (!texte) return;
-
-            try {
-              await addDoc(
-                collection(
-                  db,
-                  "chapters",
-                  chapitre.id,
-                  "comments",
-                  commentaire.id,
-                  "replies"
-                ),
-                {
-                  text: texte,
-                  authorId: utilisateurActuel.uid,
-                  authorName: profilActuel.username,
-                  createdAt: serverTimestamp()
-                }
-              );
-
-              afficherChapitres();
-
-            } catch (erreur) {
-              console.error(erreur);
-              alert("Impossible d'envoyer la réponse.");
-            }
-          });
-
-          bloc.appendChild(formulaireReponse);
-        }
-
-        zoneCommentaires.appendChild(bloc);
-      }
-
-      // ==================================
-      // 15. AJOUTER UN COMMENTAIRE
-      // ==================================
-
-      if (utilisateurActuel && profilActuel) {
-        const formulaireCommentaire = document.createElement("form");
-        const champCommentaire = document.createElement("textarea");
-
-        champCommentaire.placeholder = "Écrire un commentaire...";
-        champCommentaire.required = true;
-
-        const boutonCommentaire = creerElement(
-          "button",
-          "secondary-btn",
-          "Envoyer le commentaire"
-        );
-        boutonCommentaire.type = "submit";
-
-        formulaireCommentaire.appendChild(champCommentaire);
-        formulaireCommentaire.appendChild(boutonCommentaire);
-
-        formulaireCommentaire.addEventListener("submit", async (e) => {
+        formulaireReponse.addEventListener("submit", async (e) => {
           e.preventDefault();
 
-          const texte = champCommentaire.value.trim();
+          if (!utilisateurActuel || !profilActuel) return;
+
+          const texte = champReponse.value.trim();
           if (!texte) return;
 
           try {
             await addDoc(
-              collection(db, "chapters", chapitre.id, "comments"),
+              collection(
+                db,
+                "chapters",
+                chapitre.id,
+                "comments",
+                commentaire.id,
+                "replies"
+              ),
               {
                 text: texte,
                 authorId: utilisateurActuel.uid,
@@ -707,47 +627,85 @@ async function afficherChapitres() {
               }
             );
 
-            afficherChapitres();
+            await afficherChapitres();
 
           } catch (erreur) {
             console.error(erreur);
-            alert("Impossible d'envoyer le commentaire.");
+            alert("Impossible d'envoyer la réponse.");
           }
         });
 
-        zoneCommentaires.appendChild(formulaireCommentaire);
-
-      } else {
-        zoneCommentaires.appendChild(
-          creerElement(
-            "p",
-            "",
-            "Connecte-toi pour commenter ce chapitre."
-          )
-        );
+        bloc.appendChild(formulaireReponse);
+        zoneCommentaires.appendChild(bloc);
       }
 
+      // AJOUTER UN COMMENTAIRE
+      const formulaireCommentaire = document.createElement("form");
+      const champCommentaire = document.createElement("textarea");
+
+      champCommentaire.placeholder = "Écrire un commentaire...";
+      champCommentaire.required = true;
+
+      const boutonCommentaire = creerElement(
+        "button",
+        "",
+        "Envoyer le commentaire"
+      );
+      boutonCommentaire.type = "submit";
+
+      formulaireCommentaire.appendChild(champCommentaire);
+      formulaireCommentaire.appendChild(boutonCommentaire);
+
+      formulaireCommentaire.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        if (!utilisateurActuel || !profilActuel) return;
+
+        const texte = champCommentaire.value.trim();
+        if (!texte) return;
+
+        try {
+          await addDoc(
+            collection(db, "chapters", chapitre.id, "comments"),
+            {
+              text: texte,
+              authorId: utilisateurActuel.uid,
+              authorName: profilActuel.username,
+              createdAt: serverTimestamp()
+            }
+          );
+
+          await afficherChapitres();
+
+        } catch (erreur) {
+          console.error(erreur);
+          alert("Impossible d'envoyer le commentaire.");
+        }
+      });
+
+      zoneCommentaires.appendChild(formulaireCommentaire);
       carte.appendChild(zoneCommentaires);
       liste.appendChild(carte);
     }
 
   } catch (erreur) {
-    console.error("Erreur de chargement :", erreur);
+    console.error("Erreur de chargement des chapitres :", erreur);
 
     liste.replaceChildren(
       creerElement(
         "p",
         "",
-        "Impossible de charger les chapitres. Vérifie les règles Firestore et ta connexion."
+        "Impossible de charger les chapitres. Vérifie les règles Firestore."
       )
     );
   }
 }
 
 // ======================================
-// 16. DÉMARRAGE
+// 12. DÉMARRAGE
 // ======================================
 
-afficherPage("accueil");
+// On attend que Firebase confirme l'état de connexion.
+// onAuthStateChanged choisira ensuite automatiquement la bonne page.
 
-console.log("Roman Participatif : application initialisée.");
+console.log("Roman Participatif : application prête.");
