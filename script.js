@@ -781,3 +781,44 @@ async function afficherRomans() {
   }
 }
 
+// ======================================
+// 13. CRÉER UN ROMAN
+// ======================================
+
+element("boutonCreerRoman")?.addEventListener("click", async () => {
+  if (!utilisateurActuel || !profilActuel) {
+    alert("Connecte-toi pour créer un roman.");
+    afficherPage("compte");
+    return;
+  }
+
+  const titre = prompt("Quel est le titre de ton roman ?");
+  if (titre === null) return;
+
+  if (titre.trim().length < 2) {
+    alert("Le titre doit contenir au moins 2 caractères.");
+    return;
+  }
+
+  const description = prompt("Ajoute une courte description (facultatif) :") || "";
+
+  try {
+    await addDoc(collection(db, "novels"), {
+      title: titre.trim(),
+      description: description.trim(),
+      coverUrl: "",
+      authorId: utilisateurActuel.uid,
+      authorName: profilActuel.username || "Auteur",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: "Draft"
+    });
+
+    alert("Ton roman a été créé dans ta bibliothèque !");
+    await afficherRomans();
+  } catch (erreur) {
+    console.error("Erreur de création du roman :", erreur);
+    alert("Impossible de créer le roman. Vérifie les règles Firestore.");
+  }
+});
+
