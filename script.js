@@ -68,6 +68,84 @@ function creerElement(tag, classe, texte) {
   return el;
 }
 
+
+// ======================================
+// NOTIFICATIONS
+// ======================================
+
+async function afficherNotifications() {
+  const liste = element("listeNotifications");
+  const compteur = element("compteurNotifications");
+  if (!liste || !compteur || !utilisateurActuel) return;
+
+  try {
+    const resultat = await getDocs(
+      collection(db, "users", utilisateurActuel.uid, "notifications")
+    );
+    const notifications = resultat.docs.map(d => ({ id: d.id, ...d.data() }));
+    notifications.sort((a, b) =>
+      (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+    );
+
+    const nonLues = notifications.filter(n => n.read !== true).length;
+    compteur.textContent = nonLues > 0 ? String(nonLues) : "";
+    compteur.hidden = nonLues === 0;
+
+    liste.replaceChildren();
+    if (notifications.length === 0) {
+      liste.appendChild(creerElement("p", "", "Aucune notification pour le moment."));
+      return;
+    }
+
+    notifications.forEach(notification => {
+      const bouton = creerElement(
+        "button",
+        "notification-item",
+        (notification.read ? "" : "● ") +
+        (notification.authorName || "Un auteur") +
+        " a publié : " + (notification.chapterTitle || "un nouveau chapitre") +
+        " — " + (notification.novelTitle || "Roman")
+      );
+      bouton.type = "button";
+      bouton.addEventListener("click", async () => {
+        try {
+          if (!notification.read) {
+            await updateDoc(
+              doc(db, "users", utilisateurActuel.uid, "notifications", notification.id),
+              { read: true }
+            );
+          }
+
+          const romanRef = await getDoc(doc(db, "novels", notification.novelId));
+          if (romanRef.exists()) {
+            ouvrirRoman(notification.novelId, {
+              id: notification.novelId,
+              ...romanRef.data()
+            });
+          }
+          await afficherNotifications();
+          element("panneauNotifications").hidden = true;
+        } catch (erreur) {
+          console.error("Erreur d'ouverture de la notification :", erreur);
+          alert("Impossible d'ouvrir cette notification.");
+        }
+      });
+      liste.appendChild(bouton);
+    });
+  } catch (erreur) {
+    console.error("Erreur de chargement des notifications :", erreur);
+    liste.replaceChildren(creerElement("p", "", "Impossible de charger les notifications."));
+  }
+}
+
+element("boutonNotifications")?.addEventListener("click", async () => {
+  const panneau = element("panneauNotifications");
+  if (!panneau) return;
+  panneau.hidden = !panneau.hidden;
+  if (!panneau.hidden) await afficherNotifications();
+});
+
+
 // ======================================
 // 3. NAVIGATION
 // ======================================
@@ -310,8 +388,9 @@ onAuthStateChanged(auth, async (user) => {
     // CONNEXION RÉUSSIE : DIRECTION AUTOMATIQUE À L'ACCUEIL
     afficherPage("accueil");
 
-    // Recharge les chapitres pour le membre connecté.
+    // Recharge les chapitres et les notifications du membre connecté.
     await afficherChapitres();
+    await afficherNotifications();
 
   } else {
     element("zoneMembre").hidden = true;
@@ -787,10 +866,61 @@ async function afficherRomans() {
       description.textContent = roman.description || "Aucune description.";
       boutonOuvrir.type = "button";
       boutonOuvrir.className = "primary-btn";
-      boutonOuvrir.textContent = "Ouvrir et écrire";
+      boutonOuvrir.textContent =
+        roman.authorId === utilisateurActuel.uid ? "Ouvrir et écrire" : "Lire le roman";
       boutonOuvrir.addEventListener("click", () => ouvrirRoman(id, roman));
 
       carte.append(titre, description, boutonOuvrir);
+
+      if (roman.authorId !== utilisateurActuel.uid && roman.status === "Published") {
+        const boutonSuivre = creerElement("button", "secondary-btn", "Chargement...");
+        boutonSuivre.type = "button";
+        carte.appendChild(boutonSuivre);
+
+        const suiviRef = doc(db, "novels", id, "followers", utilisateurActuel.uid);
+        try {
+          const suivi = await getDoc(suiviRef);
+          const actualiserBouton = () => {
+            boutonSuivre.textContent = suivi.exists()
+              ? (suivi.data().notificationsEnabled ? "Ne plus suivre" : "Activer les notifications")
+              : "Suivre ce roman";
+          };
+          actualiserBouton();
+
+          boutonSuivre.addEventListener("click", async () => {
+            boutonSuivre.disabled = true;
+            try {
+              const verification = await getDoc(suiviRef);
+              if (verification.exists()) {
+                if (verification.data().notificationsEnabled) {
+                  await updateDoc(suiviRef, { notificationsEnabled: false });
+                  boutonSuivre.textContent = "Activer les notifications";
+                } else {
+                  await updateDoc(suiviRef, { notificationsEnabled: true });
+                  boutonSuivre.textContent = "Ne plus suivre";
+                }
+              } else {
+                await setDoc(suiviRef, {
+                  userId: utilisateurActuel.uid,
+                  notificationsEnabled: true,
+                  createdAt: serverTimestamp()
+                });
+                boutonSuivre.textContent = "Ne plus suivre";
+              }
+            } catch (erreur) {
+              console.error("Erreur d'abonnement :", erreur);
+              alert("Impossible de modifier cet abonnement.");
+            } finally {
+              boutonSuivre.disabled = false;
+            }
+          });
+        } catch (erreur) {
+          console.error("Erreur de lecture de l'abonnement :", erreur);
+          boutonSuivre.textContent = "Abonnement indisponible";
+          boutonSuivre.disabled = true;
+        }
+      }
+
       liste.appendChild(carte);
     });
 
@@ -852,10 +982,32 @@ function ouvrirRoman(romanId, roman) {
 
   element("titreRomanOuvert").textContent = roman.title || "Mon roman";
   element("descriptionRomanOuvert").textContent = roman.description || "";
-  element("formNouveauChapitre").reset();
+  const estAuteur = utilisateurActuel && romanActuel.authorId === utilisateurActuel.uid;
+  element("formNouveauChapitre").hidden = !estAuteur;
+  const boutonPublierRoman = element("boutonPublierRoman");
+  if (boutonPublierRoman) boutonPublierRoman.hidden = !estAuteur || romanActuel.status === "Published";
+  if (estAuteur) element("formNouveauChapitre").reset();
   message("messageNouveauChapitre", "");
   afficherPage("editeurRoman");
 }
+
+
+element("boutonPublierRoman")?.addEventListener("click", async () => {
+  if (!utilisateurActuel || !romanActuel || romanActuel.authorId !== utilisateurActuel.uid) return;
+  try {
+    await updateDoc(doc(db, "novels", romanActuel.id), {
+      status: "Published",
+      updatedAt: serverTimestamp()
+    });
+    romanActuel.status = "Published";
+    element("boutonPublierRoman").hidden = true;
+    alert("Ton roman est maintenant visible par les lecteurs. Tu peux publier ses chapitres séparément.");
+    await afficherRomans();
+  } catch (erreur) {
+    console.error("Erreur de publication du roman :", erreur);
+    alert("Impossible de publier le roman. Vérifie les règles Firebase.");
+  }
+});
 
 element("retourRomans")?.addEventListener("click", () => {
   afficherPage("romans");
@@ -927,12 +1079,65 @@ async function afficherChapitresRoman() {
     chapitres.forEach((chapitre, index) => {
       const carte = creerElement("article", "chapitre");
       carte.appendChild(creerElement("h3", "", "Chapitre " + (index + 1) + " : " + chapitre.title));
-      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + " · Brouillon"));
+      carte.appendChild(creerElement(
+        "p",
+        "auteur",
+        "Par " + (chapitre.authorName || "Auteur anonyme") +
+        (chapitre.status === "Published" ? " · Publié" : " · Brouillon")
+      ));
       carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content || ""));
 
       // Seul l'auteur peut corriger ou supprimer son chapitre.
       if (utilisateurActuel && utilisateurActuel.uid === chapitre.authorId) {
         const actions = creerElement("div", "actions-chapitre");
+
+        if (chapitre.status !== "Published" && romanActuel.status === "Published") {
+          const boutonPublier = creerElement("button", "primary-btn", "Publier ce chapitre");
+          boutonPublier.type = "button";
+          boutonPublier.addEventListener("click", async () => {
+            if (!confirm("Publier ce chapitre ? Les abonnés au roman seront avertis.")) return;
+            boutonPublier.disabled = true;
+            try {
+              await updateDoc(
+                doc(db, "novels", romanActuel.id, "chapters", chapitre.id),
+                { status: "Published", updatedAt: serverTimestamp() }
+              );
+
+              const abonnes = await getDocs(
+                collection(db, "novels", romanActuel.id, "followers")
+              );
+
+              const envois = abonnes.docs.map(async abonneDoc => {
+                const abonne = abonneDoc.data();
+                if (abonne.userId && abonne.userId !== utilisateurActuel.uid &&
+                    abonne.notificationsEnabled === true) {
+                  await setDoc(
+                    doc(db, "users", abonne.userId, "notifications", chapitre.id),
+                    {
+                      novelId: romanActuel.id,
+                      novelTitle: romanActuel.title || "Roman",
+                      chapterId: chapitre.id,
+                      chapterTitle: chapitre.title,
+                      authorId: utilisateurActuel.uid,
+                      authorName: chapitre.authorName || profilActuel.username,
+                      createdAt: serverTimestamp(),
+                      read: false
+                    }
+                  );
+                }
+              });
+              await Promise.all(envois);
+              alert("Chapitre publié ! Les abonnés ayant activé les notifications ont été avertis.");
+              await afficherChapitresRoman();
+            } catch (erreur) {
+              console.error("Erreur de publication ou de notification :", erreur);
+              alert("Le chapitre n'a pas pu être publié ou les notifications n'ont pas toutes été envoyées. Vérifie la console.");
+            } finally {
+              boutonPublier.disabled = false;
+            }
+          });
+          actions.appendChild(boutonPublier);
+        }
 
         const boutonModifier = creerElement("button", "btn-modifier", "✏️ Modifier");
         boutonModifier.type = "button";
