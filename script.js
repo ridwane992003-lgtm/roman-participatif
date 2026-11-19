@@ -19,6 +19,8 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  query,
+  where,
   updateDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
@@ -709,3 +711,4 @@ async function afficherChapitres() {
 // onAuthStateChanged choisira ensuite automatiquement la bonne page.
 
 console.log("Roman Participatif : application prête.");
+
