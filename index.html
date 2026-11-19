@@ -69,6 +69,31 @@
       <p>Chargement des romans...</p>
     </div>
   </section>
+  <!-- ÉDITEUR DU ROMAN -->
+  <section id="editeurRoman" class="page" hidden>
+    <button class="secondary-btn" type="button" id="retourRomans">← Retour à mes romans</button>
+    <div class="section-heading">
+      <span class="eyebrow">ESPACE D'ÉCRITURE</span>
+      <h1 id="titreRomanOuvert">Mon roman</h1>
+      <p id="descriptionRomanOuvert"></p>
+    </div>
+    <form id="formNouveauChapitre" class="form-card">
+      <h2>Écrire un chapitre</h2>
+      <label for="titreNouveauChapitre">Titre du chapitre</label>
+      <input id="titreNouveauChapitre" type="text" maxlength="150" placeholder="Ex. Chapitre 1 : Le commencement" required>
+      <label for="contenuNouveauChapitre">Ton texte</label>
+      <textarea id="contenuNouveauChapitre" minlength="10" placeholder="Commence à écrire ton histoire ici..." required></textarea>
+      <label class="check-line">
+        <input type="checkbox" id="anonymeNouveauChapitre">
+        Écrire sous le nom « Auteur anonyme »
+      </label>
+      <button class="primary-btn" type="submit">Enregistrer le chapitre</button>
+      <p id="messageNouveauChapitre" class="message" aria-live="polite"></p>
+    </form>
+    <h2>Les chapitres de ce roman</h2>
+    <div id="listeChapitresRoman"><p>Chargement...</p></div>
+  </section>
+
   <!-- LECTURE -->
   <section id="chapitres" class="page" hidden>
     <div class="section-heading">
