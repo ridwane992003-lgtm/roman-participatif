@@ -46,6 +46,7 @@ let utilisateurActuel = null;
 let profilActuel = null;
 let chargementTermine = false;
 let etapeConnexion = 1;
+let romanActuel = null;
 
 // ======================================
 // 2. OUTILS
@@ -74,6 +75,7 @@ function creerElement(tag, classe, texte) {
 const pages = [
   "accueil",
   "romans",
+  "editeurRoman",
   "chapitres",
   "publication",
   "communaute",
@@ -109,12 +111,9 @@ function afficherPage(nomPage) {
     else bouton.removeAttribute("aria-current");
   });
 
-  if (nomPage === "chapitres") {
-    afficherChapitres();
-  }
-  if (nomPage === "romans") {
-    afficherRomans();
-}
+  if (nomPage === "chapitres") afficherChapitres();
+  if (nomPage === "romans") afficherRomans();
+  if (nomPage === "editeurRoman" && romanActuel) afficherChapitresRoman();
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -749,11 +748,11 @@ async function afficherRomans() {
     const romans = new Map();
 
     romansPublies.forEach((document) => {
-      romans.set(document.id, document.data());
+      romans.set(document.id, { id: document.id, ...document.data() });
     });
 
     mesRomans.forEach((document) => {
-      romans.set(document.id, document.data());
+      romans.set(document.id, { id: document.id, ...document.data() });
     });
 
     liste.replaceChildren();
@@ -764,14 +763,20 @@ async function afficherRomans() {
     }
 
     romans.forEach((roman) => {
-      const carte = document.createElement("div");
+      const carte = document.createElement("article");
+      carte.className = "carte-roman";
       const titre = document.createElement("h3");
       const description = document.createElement("p");
+      const boutonOuvrir = document.createElement("button");
 
       titre.textContent = roman.title || "Roman sans titre";
-      description.textContent = roman.description || "";
+      description.textContent = roman.description || "Aucune description.";
+      boutonOuvrir.type = "button";
+      boutonOuvrir.className = "primary-btn";
+      boutonOuvrir.textContent = "Ouvrir et écrire";
+      boutonOuvrir.addEventListener("click", () => ouvrirRoman(id, roman));
 
-      carte.append(titre, description);
+      carte.append(titre, description, boutonOuvrir);
       liste.appendChild(carte);
     });
 
@@ -822,3 +827,98 @@ element("boutonCreerRoman")?.addEventListener("click", async () => {
   }
 });
 
+
+
+// ======================================
+// 14. OUVRIR UN ROMAN ET ÉCRIRE SES CHAPITRES
+// ======================================
+
+function ouvrirRoman(romanId, roman) {
+  romanActuel = { id: romanId, ...roman };
+
+  element("titreRomanOuvert").textContent = roman.title || "Mon roman";
+  element("descriptionRomanOuvert").textContent = roman.description || "";
+  element("formNouveauChapitre").reset();
+  message("messageNouveauChapitre", "");
+  afficherPage("editeurRoman");
+}
+
+element("retourRomans")?.addEventListener("click", () => {
+  afficherPage("romans");
+});
+
+element("formNouveauChapitre")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!utilisateurActuel || !profilActuel || !romanActuel) {
+    alert("Connecte-toi et ouvre d'abord ton roman.");
+    return;
+  }
+
+  if (romanActuel.authorId !== utilisateurActuel.uid) {
+    alert("Seul l'auteur de ce roman peut y ajouter un chapitre.");
+    return;
+  }
+
+  const titre = element("titreNouveauChapitre").value.trim();
+  const contenu = element("contenuNouveauChapitre").value.trim();
+  const anonyme = element("anonymeNouveauChapitre").checked;
+
+  if (titre.length < 2 || contenu.length < 10) {
+    message("messageNouveauChapitre", "Le titre doit contenir 2 caractères et le texte au moins 10.");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "novels", romanActuel.id, "chapters"), {
+      title: titre,
+      content: contenu,
+      authorId: utilisateurActuel.uid,
+      authorName: anonyme ? "Auteur anonyme" : profilActuel.username,
+      anonymous: anonyme,
+      status: "Draft",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    element("formNouveauChapitre").reset();
+    message("messageNouveauChapitre", "Chapitre enregistré dans ce roman !");
+    await afficherChapitresRoman();
+  } catch (erreur) {
+    console.error("Erreur d'enregistrement du chapitre :", erreur);
+    message("messageNouveauChapitre", "Enregistrement refusé par Firebase. Les règles des chapitres du roman doivent être ajoutées.");
+  }
+});
+
+async function afficherChapitresRoman() {
+  const liste = element("listeChapitresRoman");
+  if (!liste || !romanActuel) return;
+
+  liste.textContent = "Chargement des chapitres...";
+  try {
+    const resultat = await getDocs(
+      collection(db, "novels", romanActuel.id, "chapters")
+    );
+
+    liste.replaceChildren();
+
+    if (resultat.empty) {
+      liste.textContent = "Aucun chapitre pour le moment. Écris le premier ci-dessus.";
+      return;
+    }
+
+    const chapitres = resultat.docs.map(d => ({ id: d.id, ...d.data() }));
+    chapitres.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+
+    chapitres.forEach((chapitre, index) => {
+      const carte = creerElement("article", "chapitre");
+      carte.appendChild(creerElement("h3", "", "Chapitre " + (index + 1) + " : " + chapitre.title));
+      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + " · Brouillon"));
+      carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content));
+      liste.appendChild(carte);
+    });
+  } catch (erreur) {
+    console.error("Erreur de lecture des chapitres du roman :", erreur);
+    liste.textContent = "Impossible de charger les chapitres. Les règles Firebase doivent autoriser l'accès à cette sous-collection.";
+  }
+}
