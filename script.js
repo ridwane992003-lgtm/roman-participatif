@@ -716,4 +716,68 @@ async function afficherChapitres() {
 // onAuthStateChanged choisira ensuite automatiquement la bonne page.
 
 console.log("Roman Participatif : application prête.");
+// ======================================
+// 12. AFFICHER LES ROMANS
+// ======================================
+
+async function afficherRomans() {
+  const liste = element("listeRomans");
+  if (!liste) return;
+
+  if (!utilisateurActuel) {
+    liste.textContent = "Connecte-toi pour voir les romans.";
+    return;
+  }
+
+  liste.textContent = "Chargement des romans...";
+
+  try {
+    const romansPublies = await getDocs(
+      query(
+        collection(db, "novels"),
+        where("status", "==", "Published")
+      )
+    );
+
+    const mesRomans = await getDocs(
+      query(
+        collection(db, "novels"),
+        where("authorId", "==", utilisateurActuel.uid)
+      )
+    );
+
+    const romans = new Map();
+
+    romansPublies.forEach((document) => {
+      romans.set(document.id, document.data());
+    });
+
+    mesRomans.forEach((document) => {
+      romans.set(document.id, document.data());
+    });
+
+    liste.replaceChildren();
+
+    if (romans.size === 0) {
+      liste.textContent = "Aucun roman pour le moment.";
+      return;
+    }
+
+    romans.forEach((roman) => {
+      const carte = document.createElement("div");
+      const titre = document.createElement("h3");
+      const description = document.createElement("p");
+
+      titre.textContent = roman.title || "Roman sans titre";
+      description.textContent = roman.description || "";
+
+      carte.append(titre, description);
+      liste.appendChild(carte);
+    });
+
+  } catch (erreur) {
+    console.error("Erreur de chargement des romans :", erreur);
+    liste.textContent = "Impossible de charger les romans.";
+  }
+}
 
