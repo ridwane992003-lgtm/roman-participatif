@@ -735,3 +735,38 @@ textarea {
   gap: 14px;
   margin-top: 15px;
 }
+
+
+/* ACTIONS DE CORRECTION ET DE SUPPRESSION DES CHAPITRES */
+.actions-chapitre .btn-modifier,
+.actions-chapitre .btn-supprimer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.actions-chapitre .btn-modifier {
+  color: var(--blue);
+  background: #edf4ff;
+}
+
+.actions-chapitre .btn-supprimer {
+  color: #b42318;
+  background: #fff0ee;
+}
+
+.actions-chapitre button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+/* Six boutons de navigation, sans bouton rejeté sur une deuxième ligne */
+.bottom-nav {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
