@@ -705,3 +705,33 @@ textarea {
 #listeRomans {
   margin-top: 25px;
 }
+
+
+/* CARTES DE ROMANS ET ÉDITEUR */
+#listeRomans {
+  display: grid;
+  gap: 14px;
+}
+.carte-roman {
+  margin-top: 14px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: white;
+  box-shadow: var(--shadow);
+}
+.carte-roman h3 {
+  margin: 0 0 8px;
+  color: var(--navy);
+}
+.carte-roman p {
+  color: var(--muted);
+}
+#editeurRoman > .secondary-btn {
+  margin-bottom: 20px;
+}
+#listeChapitresRoman {
+  display: grid;
+  gap: 14px;
+  margin-top: 15px;
+}
