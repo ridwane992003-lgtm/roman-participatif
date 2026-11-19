@@ -278,7 +278,21 @@ onAuthStateChanged(auth, async (user) => {
       if (profil.exists()) {
         profilActuel = profil.data();
       } else {
-        console.error("Profil utilisateur introuvable dans Firestore.");
+        // Répare automatiquement les comptes Auth sans profil Firestore.
+        const pseudoParDefaut =
+          user.displayName ||
+          (user.email ? user.email.split("@")[0] : "") ||
+          ("Membre-" + user.uid.slice(0, 6));
+
+        const nouveauProfil = {
+          username: pseudoParDefaut,
+          email: user.email || "",
+          anonymous: false,
+          createdAt: serverTimestamp()
+        };
+
+        await setDoc(doc(db, "users", user.uid), nouveauProfil);
+        profilActuel = nouveauProfil;
       }
 
     } catch (erreur) {
@@ -914,7 +928,64 @@ async function afficherChapitresRoman() {
       const carte = creerElement("article", "chapitre");
       carte.appendChild(creerElement("h3", "", "Chapitre " + (index + 1) + " : " + chapitre.title));
       carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + " · Brouillon"));
-      carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content));
+      carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content || ""));
+
+      // Seul l'auteur peut corriger ou supprimer son chapitre.
+      if (utilisateurActuel && utilisateurActuel.uid === chapitre.authorId) {
+        const actions = creerElement("div", "actions-chapitre");
+
+        const boutonModifier = creerElement("button", "btn-modifier", "✏️ Modifier");
+        boutonModifier.type = "button";
+        boutonModifier.addEventListener("click", async () => {
+          const nouveauTitre = prompt("Corriger le titre du chapitre :", chapitre.title || "");
+          if (nouveauTitre === null) return;
+          const nouveauTexte = prompt("Corriger le texte du chapitre :", chapitre.content || "");
+          if (nouveauTexte === null) return;
+
+          if (nouveauTitre.trim().length < 2 || nouveauTexte.trim().length < 10) {
+            alert("Le titre doit contenir au moins 2 caractères et le texte au moins 10.");
+            return;
+          }
+
+          boutonModifier.disabled = true;
+          try {
+            await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {
+              title: nouveauTitre.trim(),
+              content: nouveauTexte.trim(),
+              updatedAt: serverTimestamp()
+            });
+            await afficherChapitresRoman();
+          } catch (erreur) {
+            console.error("Erreur de modification du chapitre :", erreur);
+            alert("Impossible de modifier ce chapitre. Vérifie les règles Firestore.");
+          } finally {
+            boutonModifier.disabled = false;
+          }
+        });
+
+        const boutonSupprimer = creerElement("button", "btn-supprimer", "🗑️ Effacer");
+        boutonSupprimer.type = "button";
+        boutonSupprimer.title = "Supprimer ce chapitre";
+        boutonSupprimer.setAttribute("aria-label", "Supprimer ce chapitre");
+        boutonSupprimer.addEventListener("click", async () => {
+          if (!confirm("Veux-tu vraiment effacer ce chapitre ? Cette action est définitive.")) return;
+
+          boutonSupprimer.disabled = true;
+          try {
+            await deleteDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id));
+            await afficherChapitresRoman();
+          } catch (erreur) {
+            console.error("Erreur de suppression du chapitre :", erreur);
+            alert("Impossible d'effacer ce chapitre. Vérifie les règles Firestore.");
+          } finally {
+            boutonSupprimer.disabled = false;
+          }
+        });
+
+        actions.append(boutonModifier, boutonSupprimer);
+        carte.appendChild(actions);
+      }
+
       liste.appendChild(carte);
     });
   } catch (erreur) {
