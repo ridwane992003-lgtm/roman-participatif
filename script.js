@@ -882,7 +882,7 @@ async function afficherRomans() {
           const suivi = await getDoc(suiviRef);
           const actualiserBouton = () => {
             boutonSuivre.textContent = suivi.exists()
-              ? (suivi.data().notificationsEnabled ? "Ne plus suivre" : "Activer les notifications")
+              ? (suivi.data().notificationsEnabled ? "Désactiver les notifications" : "Activer les notifications")
               : "Suivre ce roman";
           };
           actualiserBouton();
@@ -897,7 +897,7 @@ async function afficherRomans() {
                   boutonSuivre.textContent = "Activer les notifications";
                 } else {
                   await updateDoc(suiviRef, { notificationsEnabled: true });
-                  boutonSuivre.textContent = "Ne plus suivre";
+                  boutonSuivre.textContent = "Désactiver les notifications";
                 }
               } else {
                 await setDoc(suiviRef, {
@@ -905,7 +905,7 @@ async function afficherRomans() {
                   notificationsEnabled: true,
                   createdAt: serverTimestamp()
                 });
-                boutonSuivre.textContent = "Ne plus suivre";
+                boutonSuivre.textContent = "Désactiver les notifications";
               }
             } catch (erreur) {
               console.error("Erreur d'abonnement :", erreur);
@@ -1003,6 +1003,7 @@ element("boutonPublierRoman")?.addEventListener("click", async () => {
     element("boutonPublierRoman").hidden = true;
     alert("Ton roman est maintenant visible par les lecteurs. Tu peux publier ses chapitres séparément.");
     await afficherRomans();
+    await afficherChapitresRoman();
   } catch (erreur) {
     console.error("Erreur de publication du roman :", erreur);
     alert("Impossible de publier le roman. Vérifie les règles Firebase.");
