@@ -672,3 +672,36 @@ textarea {
     max-width: 100%;
   }
 }
+/* PAGE MES ROMANS */
+#romans {
+  padding: 20px;
+}
+
+#romans .section-heading {
+  margin-bottom: 25px;
+}
+
+#romans .section-heading h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+#romans .section-heading p {
+  color: #777;
+  line-height: 1.5;
+}
+
+#boutonCreerRoman {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: #6c4ce3;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#listeRomans {
+  margin-top: 25px;
+}
