@@ -85,7 +85,7 @@ function afficherPage(nomPage) {
 
   // Les pages réservées aux membres sont protégées.
   const pagesProtegees = [
-    "roman",
+    "romans",
     "chapitres",
     "publication",
     "communaute"
