@@ -73,6 +73,7 @@ function creerElement(tag, classe, texte) {
 
 const pages = [
   "accueil",
+  "romans",
   "chapitres",
   "publication",
   "communaute",
