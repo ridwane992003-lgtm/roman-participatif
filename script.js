@@ -762,7 +762,7 @@ async function afficherRomans() {
       return;
     }
 
-    romans.forEach((roman) => {
+    romans.forEach((roman, id) => {
       const carte = document.createElement("article");
       carte.className = "carte-roman";
       const titre = document.createElement("h3");
