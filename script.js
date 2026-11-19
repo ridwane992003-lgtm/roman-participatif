@@ -112,6 +112,9 @@ function afficherPage(nomPage) {
   if (nomPage === "chapitres") {
     afficherChapitres();
   }
+  if (nomPage === "romans") {
+    afficherRomans();
+}
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
