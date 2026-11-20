@@ -858,7 +858,7 @@ async function afficherRomans() {
       }
 
       liste.appendChild(carte);
-    });
+    }
 
   } catch (erreur) {
     console.error("Erreur de chargement des romans :", erreur);
@@ -913,7 +913,7 @@ element("boutonCreerRoman")?.addEventListener("click", async () => {
 // 14. OUVRIR UN ROMAN ET ÉCRIRE SES CHAPITRES
 // ======================================
 
-function ouvrirRoman(romanId, roman) {
+async function ouvrirRoman(romanId, roman) {
   romanActuel = { id: romanId, ...roman };
 
   element("titreRomanOuvert").textContent = roman.title || "Mon roman";
