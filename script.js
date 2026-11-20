@@ -1262,7 +1262,7 @@ async function afficherChapitresRoman() {
             if (!confirm("Publier ce chapitre pour le rendre visible aux lecteurs ?")) return;
             boutonPublier.disabled = true;
             try {
-              await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", publishedAt:serverTimestamp(), updatedAt:serverTimestamp()});
+              await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", updatedAt:serverTimestamp()});
               await afficherChapitresRoman();
             } catch (erreur) {
               console.error("Erreur de publication :", erreur);
