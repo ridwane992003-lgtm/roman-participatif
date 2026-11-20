@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting on merge
+name: Deploy Firebase Hosting and Firestore Rules
 
 on:
   push:
@@ -6,17 +6,24 @@ on:
       - main
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROMAN_PARTICIPATIF }}
-          channelId: live
-          projectId: roman-participatif
-          
+          node-version: "20"
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Authenticate and deploy Hosting + Firestore rules
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROMAN_PARTICIPATIF }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+          firebase deploy --only hosting,firestore:rules --project roman-participatif --non-interactive
