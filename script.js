@@ -24,6 +24,14 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+
 // ======================================
 // 1. FIREBASE
 // ======================================
@@ -40,6 +48,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 let utilisateurActuel = null;
 let profilActuel = null;
@@ -793,6 +802,14 @@ async function afficherRomans() {
 
       titre.textContent = roman.title || "Roman sans titre";
       description.textContent = roman.description || "Aucune description.";
+      if (roman.coverUrl) {
+        const couverture = document.createElement("img");
+        couverture.className = "couverture-carte-roman";
+        couverture.src = roman.coverUrl;
+        couverture.alt = "Couverture de " + (roman.title || "ce roman");
+        couverture.loading = "lazy";
+        carte.appendChild(couverture);
+      }
       boutonOuvrir.type = "button";
       boutonOuvrir.className = "primary-btn";
       boutonOuvrir.textContent = "Ouvrir et écrire";
@@ -831,6 +848,11 @@ async function afficherRomans() {
               await deleteDoc(doc(db, "novels", id, "followers", abonneDoc.id));
             }
 
+            try {
+              await deleteObject(storageRef(storage, "novels/" + id + "/cover/main"));
+            } catch (erreurCouverture) {
+              if (erreurCouverture.code !== "storage/object-not-found") throw erreurCouverture;
+            }
             await deleteDoc(doc(db, "novels", id));
             if (romanActuel?.id === id) romanActuel = null;
             alert("Ton roman et ses chapitres ont été supprimés.");
@@ -906,10 +928,108 @@ function ouvrirRoman(romanId, roman) {
 
   element("titreRomanOuvert").textContent = roman.title || "Mon roman";
   element("descriptionRomanOuvert").textContent = roman.description || "";
+  const apercuCouverture = element("apercuCouvertureRoman");
+  const boutonSupprimerCouverture = element("boutonSupprimerCouverture");
+  if (apercuCouverture) {
+    apercuCouverture.src = roman.coverUrl || "";
+    apercuCouverture.hidden = !roman.coverUrl;
+  }
+  if (boutonSupprimerCouverture) boutonSupprimerCouverture.hidden = !roman.coverUrl;
+  if (element("fichierCouvertureRoman")) element("fichierCouvertureRoman").value = "";
+  message("messageCouvertureRoman", "");
   element("formNouveauChapitre").reset();
   message("messageNouveauChapitre", "");
   afficherPage("editeurRoman");
 }
+
+// ======================================
+// COUVERTURE PERSONNALISÉE DU ROMAN
+// ======================================
+
+element("boutonEnregistrerCouverture")?.addEventListener("click", async () => {
+  if (!utilisateurActuel || !romanActuel || romanActuel.authorId !== utilisateurActuel.uid) {
+    message("messageCouvertureRoman", "Seul l'auteur connecté peut modifier cette couverture.");
+    return;
+  }
+
+  const champFichier = element("fichierCouvertureRoman");
+  const fichier = champFichier?.files?.[0];
+
+  if (!fichier) {
+    message("messageCouvertureRoman", "Choisis d'abord une image.");
+    return;
+  }
+
+  const typesAutorises = ["image/jpeg", "image/png", "image/webp"];
+  if (!typesAutorises.includes(fichier.type)) {
+    message("messageCouvertureRoman", "Format refusé. Utilise JPG, PNG ou WebP.");
+    return;
+  }
+  if (fichier.size > 5 * 1024 * 1024) {
+    message("messageCouvertureRoman", "L'image ne doit pas dépasser 5 Mo.");
+    return;
+  }
+
+  const bouton = element("boutonEnregistrerCouverture");
+  bouton.disabled = true;
+  message("messageCouvertureRoman", "Envoi de la couverture en cours...");
+
+  try {
+    const chemin = "novels/" + romanActuel.id + "/cover/main";
+    const imageRef = storageRef(storage, chemin);
+    await uploadBytes(imageRef, fichier, { contentType: fichier.type });
+    const url = await getDownloadURL(imageRef);
+
+    await updateDoc(doc(db, "novels", romanActuel.id), {
+      coverUrl: url,
+      updatedAt: serverTimestamp()
+    });
+
+    romanActuel.coverUrl = url;
+    const apercu = element("apercuCouvertureRoman");
+    apercu.src = url;
+    apercu.hidden = false;
+    element("boutonSupprimerCouverture").hidden = false;
+    message("messageCouvertureRoman", "Ta couverture a été enregistrée !");
+    await afficherRomans();
+  } catch (erreur) {
+    console.error("Erreur d'enregistrement de la couverture :", erreur);
+    message("messageCouvertureRoman", "Envoi impossible. Vérifie que Firebase Storage est activé et que ses règles sont publiées.");
+  } finally {
+    bouton.disabled = false;
+  }
+});
+
+element("boutonSupprimerCouverture")?.addEventListener("click", async () => {
+  if (!utilisateurActuel || !romanActuel || romanActuel.authorId !== utilisateurActuel.uid) return;
+  if (!confirm("Supprimer la couverture de ce roman ?")) return;
+
+  const bouton = element("boutonSupprimerCouverture");
+  bouton.disabled = true;
+  try {
+    try {
+      await deleteObject(storageRef(storage, "novels/" + romanActuel.id + "/cover/main"));
+    } catch (erreur) {
+      if (erreur.code !== "storage/object-not-found") throw erreur;
+    }
+
+    await updateDoc(doc(db, "novels", romanActuel.id), {
+      coverUrl: "",
+      updatedAt: serverTimestamp()
+    });
+    romanActuel.coverUrl = "";
+    element("apercuCouvertureRoman").hidden = true;
+    bouton.hidden = true;
+    element("fichierCouvertureRoman").value = "";
+    message("messageCouvertureRoman", "La couverture a été supprimée.");
+    await afficherRomans();
+  } catch (erreur) {
+    console.error("Erreur de suppression de la couverture :", erreur);
+    message("messageCouvertureRoman", "Impossible de supprimer la couverture. Vérifie les règles Firebase Storage.");
+  } finally {
+    bouton.disabled = false;
+  }
+});
 
 element("boutonNotifications")?.addEventListener("click", () => afficherPage("notifications"));
 element("navNotifications")?.addEventListener("click", () => afficherPage("notifications"));
