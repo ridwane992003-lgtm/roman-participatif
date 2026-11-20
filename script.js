@@ -47,6 +47,7 @@ let profilActuel = null;
 let chargementTermine = false;
 let etapeConnexion = 1;
 let romanActuel = null;
+let chapitreEnEdition = null;
 
 // ======================================
 // 2. OUTILS
@@ -76,6 +77,8 @@ const pages = [
   "accueil",
   "romans",
   "editeurRoman",
+  "editeurChapitre",
+  "notifications",
   "chapitres",
   "publication",
   "communaute",
@@ -114,6 +117,7 @@ function afficherPage(nomPage) {
   if (nomPage === "chapitres") afficherChapitres();
   if (nomPage === "romans") afficherRomans();
   if (nomPage === "editeurRoman" && romanActuel) afficherChapitresRoman();
+  if (nomPage === "notifications") afficherNotifications();
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -310,8 +314,9 @@ onAuthStateChanged(auth, async (user) => {
     // CONNEXION RÉUSSIE : DIRECTION AUTOMATIQUE À L'ACCUEIL
     afficherPage("accueil");
 
-    // Recharge les chapitres pour le membre connecté.
+    // Recharge les chapitres et les notifications du membre connecté.
     await afficherChapitres();
+    await actualiserCompteurNotifications();
 
   } else {
     element("zoneMembre").hidden = true;
@@ -484,6 +489,7 @@ async function afficherChapitres() {
               userId: utilisateurActuel.uid,
               createdAt: serverTimestamp()
             });
+            await creerNotification(chapitre.authorId, "like", (profilActuel?.username || "Un membre") + " a apprécié ton chapitre « " + (chapitre.title || "Sans titre") + " ».", chapitre.id);
           }
 
           await afficherChapitres();
@@ -694,6 +700,7 @@ async function afficherChapitres() {
               createdAt: serverTimestamp()
             }
           );
+          await creerNotification(chapitre.authorId, "comment", (profilActuel.username || "Un membre") + " a commenté ton chapitre « " + (chapitre.title || "Sans titre") + " ».", chapitre.id);
 
           await afficherChapitres();
 
@@ -857,6 +864,72 @@ function ouvrirRoman(romanId, roman) {
   afficherPage("editeurRoman");
 }
 
+element("boutonNotifications")?.addEventListener("click", () => afficherPage("notifications"));
+element("navNotifications")?.addEventListener("click", () => afficherPage("notifications"));
+
+async function creerNotification(destinataireId, type, texte, chapitreId) {
+  if (!destinataireId || destinataireId === utilisateurActuel?.uid) return;
+  try {
+    await addDoc(collection(db, "notifications"), {
+      recipientId: destinataireId,
+      actorId: utilisateurActuel.uid,
+      actorName: profilActuel?.username || "Un membre",
+      type,
+      text: texte,
+      chapterId: chapitreId || "",
+      read: false,
+      createdAt: serverTimestamp()
+    });
+    await actualiserCompteurNotifications();
+  } catch (erreur) {
+    console.error("Notification non enregistrée. Vérifie les règles Firestore :", erreur);
+  }
+}
+
+async function actualiserCompteurNotifications() {
+  if (!utilisateurActuel) return;
+  try {
+    const resultat = await getDocs(query(collection(db, "notifications"), where("recipientId", "==", utilisateurActuel.uid)));
+    const nonLues = resultat.docs.filter(d => d.data().read !== true).length;
+    const compteur = element("compteurNotifications");
+    if (compteur) compteur.textContent = String(nonLues);
+  } catch (erreur) {
+    console.warn("Compteur des notifications indisponible :", erreur);
+  }
+}
+
+async function afficherNotifications() {
+  const liste = element("listeNotifications");
+  if (!liste || !utilisateurActuel) return;
+  liste.textContent = "Chargement des notifications...";
+  try {
+    const resultat = await getDocs(query(collection(db, "notifications"), where("recipientId", "==", utilisateurActuel.uid)));
+    const notifications = resultat.docs.map(d => ({id:d.id,...d.data()}));
+    notifications.sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0));
+    liste.replaceChildren();
+    if (!notifications.length) { liste.textContent = "Tu n'as pas encore de notification."; }
+    for (const n of notifications) {
+      const carte = creerElement("article", "notification-item" + (n.read ? "" : " unread"));
+      carte.appendChild(creerElement("p", "", n.text || "Nouvelle activité"));
+      carte.appendChild(creerElement("small", "", n.actorName || "Un membre"));
+      if (!n.read) {
+        const bouton = creerElement("button", "", "Marquer comme lu");
+        bouton.type = "button";
+        bouton.addEventListener("click", async () => {
+          try { await updateDoc(doc(db, "notifications", n.id), {read:true}); await afficherNotifications(); await actualiserCompteurNotifications(); }
+          catch(e) { console.error(e); alert("Impossible de mettre à jour cette notification."); }
+        });
+        carte.appendChild(bouton);
+      }
+      liste.appendChild(carte);
+    }
+    await actualiserCompteurNotifications();
+  } catch (erreur) {
+    console.error("Erreur de chargement des notifications :", erreur);
+    liste.textContent = "Les notifications ne sont pas accessibles. Vérifie les règles Firestore de la collection notifications.";
+  }
+}
+
 element("retourRomans")?.addEventListener("click", () => {
   afficherPage("romans");
 });
@@ -904,6 +977,54 @@ element("formNouveauChapitre")?.addEventListener("submit", async (e) => {
   }
 });
 
+function ouvrirEditeurChapitre(chapitre) {
+  chapitreEnEdition = { ...chapitre };
+  element("titreEditionChapitre").value = chapitre.title || "";
+  element("texteEditionChapitre").value = chapitre.content || "";
+  message("messageEditionChapitre", "");
+  element("publierEditionChapitre").hidden = chapitre.status === "Published";
+  afficherPage("editeurChapitre");
+}
+
+async function enregistrerEditionChapitre(publier = false) {
+  if (!chapitreEnEdition || !romanActuel || !utilisateurActuel) return;
+  const titre = element("titreEditionChapitre").value.trim();
+  const contenu = element("texteEditionChapitre").value.trim();
+  if (titre.length < 2 || contenu.length < 10) {
+    message("messageEditionChapitre", "Le titre doit contenir au moins 2 caractères et le texte au moins 10.");
+    return false;
+  }
+  try {
+    await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitreEnEdition.id), {
+      title: titre,
+      content: contenu,
+      ...(publier ? {status:"Published", publishedAt:serverTimestamp()} : {}),
+      updatedAt: serverTimestamp()
+    });
+    chapitreEnEdition.title = titre;
+    chapitreEnEdition.content = contenu;
+    if (publier) chapitreEnEdition.status = "Published";
+    message("messageEditionChapitre", publier ? "Chapitre publié avec succès !" : "Corrections enregistrées.");
+    await afficherChapitresRoman();
+    if (publier) afficherPage("editeurRoman");
+    return true;
+  } catch (erreur) {
+    console.error("Erreur d'enregistrement :", erreur);
+    message("messageEditionChapitre", "Enregistrement impossible. Vérifie les règles Firestore.");
+    return false;
+  }
+}
+
+element("formEditionChapitre")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  await enregistrerEditionChapitre(false);
+});
+element("publierEditionChapitre")?.addEventListener("click", async () => {
+  if (confirm("Publier ce chapitre ? Il sera alors visible dans ton roman.")) await enregistrerEditionChapitre(true);
+});
+element("retourEditeurRoman")?.addEventListener("click", () => afficherPage("editeurRoman"));
+element("annulerEditionChapitre")?.addEventListener("click", () => afficherPage("editeurRoman"));
+
 async function afficherChapitresRoman() {
   const liste = element("listeChapitresRoman");
   if (!liste || !romanActuel) return;
@@ -927,7 +1048,7 @@ async function afficherChapitresRoman() {
     chapitres.forEach((chapitre, index) => {
       const carte = creerElement("article", "chapitre");
       carte.appendChild(creerElement("h3", "", "Chapitre " + (index + 1) + " : " + chapitre.title));
-      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + " · Brouillon"));
+      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + (chapitre.status === "Published" ? " · Publié" : " · Brouillon")));
       carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content || ""));
 
       // Seul l'auteur peut corriger ou supprimer son chapitre.
@@ -936,32 +1057,7 @@ async function afficherChapitresRoman() {
 
         const boutonModifier = creerElement("button", "btn-modifier", "✏️ Modifier");
         boutonModifier.type = "button";
-        boutonModifier.addEventListener("click", async () => {
-          const nouveauTitre = prompt("Corriger le titre du chapitre :", chapitre.title || "");
-          if (nouveauTitre === null) return;
-          const nouveauTexte = prompt("Corriger le texte du chapitre :", chapitre.content || "");
-          if (nouveauTexte === null) return;
-
-          if (nouveauTitre.trim().length < 2 || nouveauTexte.trim().length < 10) {
-            alert("Le titre doit contenir au moins 2 caractères et le texte au moins 10.");
-            return;
-          }
-
-          boutonModifier.disabled = true;
-          try {
-            await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {
-              title: nouveauTitre.trim(),
-              content: nouveauTexte.trim(),
-              updatedAt: serverTimestamp()
-            });
-            await afficherChapitresRoman();
-          } catch (erreur) {
-            console.error("Erreur de modification du chapitre :", erreur);
-            alert("Impossible de modifier ce chapitre. Vérifie les règles Firestore.");
-          } finally {
-            boutonModifier.disabled = false;
-          }
-        });
+        boutonModifier.addEventListener("click", () => ouvrirEditeurChapitre(chapitre));
 
         const boutonSupprimer = creerElement("button", "btn-supprimer", "🗑️ Effacer");
         boutonSupprimer.type = "button";
@@ -982,6 +1078,22 @@ async function afficherChapitresRoman() {
           }
         });
 
+        if (chapitre.status !== "Published") {
+          const boutonPublier = creerElement("button", "btn-publier", "🚀 Publier");
+          boutonPublier.type = "button";
+          boutonPublier.addEventListener("click", async () => {
+            if (!confirm("Publier ce chapitre pour le rendre visible aux lecteurs ?")) return;
+            boutonPublier.disabled = true;
+            try {
+              await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", publishedAt:serverTimestamp(), updatedAt:serverTimestamp()});
+              await afficherChapitresRoman();
+            } catch (erreur) {
+              console.error("Erreur de publication :", erreur);
+              alert("Publication impossible. Vérifie les règles Firestore.");
+            } finally { boutonPublier.disabled = false; }
+          });
+          actions.appendChild(boutonPublier);
+        }
         actions.append(boutonModifier, boutonSupprimer);
         carte.appendChild(actions);
       }
