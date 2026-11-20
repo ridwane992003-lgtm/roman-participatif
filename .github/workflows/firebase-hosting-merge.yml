@@ -1,4 +1,4 @@
-name: Deploy Firebase Hosting and Firestore Rules
+name: Deploy Firebase Hosting
 
 on:
   push:
@@ -20,10 +20,10 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 
-      - name: Authenticate and deploy Hosting + Firestore rules
+      - name: Authenticate and deploy Hosting
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROMAN_PARTICIPATIF }}
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
-          firebase deploy --only hosting,firestore:rules --project roman-participatif --non-interactive
+          firebase deploy --only hosting --project roman-participatif --non-interactive
