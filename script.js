@@ -24,14 +24,6 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-import {
-  getStorage,
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject
-} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-
 // ======================================
 // 1. FIREBASE
 // ======================================
@@ -48,7 +40,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 let utilisateurActuel = null;
 let profilActuel = null;
@@ -793,7 +784,7 @@ async function afficherRomans() {
       return;
     }
 
-    romans.forEach((roman, id) => {
+    for (const [id, roman] of romans) {
       const carte = document.createElement("article");
       carte.className = "carte-roman";
       const titre = document.createElement("h3");
@@ -802,10 +793,11 @@ async function afficherRomans() {
 
       titre.textContent = roman.title || "Roman sans titre";
       description.textContent = roman.description || "Aucune description.";
-      if (roman.coverUrl) {
+      const couvertureDoc = await getDoc(doc(db, "novelCovers", id));
+      if (couvertureDoc.exists()) {
         const couverture = document.createElement("img");
         couverture.className = "couverture-carte-roman";
-        couverture.src = roman.coverUrl;
+        couverture.src = couvertureDoc.data().imageData;
         couverture.alt = "Couverture de " + (roman.title || "ce roman");
         couverture.loading = "lazy";
         carte.appendChild(couverture);
@@ -848,11 +840,9 @@ async function afficherRomans() {
               await deleteDoc(doc(db, "novels", id, "followers", abonneDoc.id));
             }
 
-            try {
-              await deleteObject(storageRef(storage, "novels/" + id + "/cover/main"));
-            } catch (erreurCouverture) {
-              if (erreurCouverture.code !== "storage/object-not-found") throw erreurCouverture;
-            }
+            const couvertureRef = doc(db, "novelCovers", id);
+            const couvertureExistante = await getDoc(couvertureRef);
+            if (couvertureExistante.exists()) await deleteDoc(couvertureRef);
             await deleteDoc(doc(db, "novels", id));
             if (romanActuel?.id === id) romanActuel = null;
             alert("Ton roman et ses chapitres ont été supprimés.");
@@ -943,58 +933,85 @@ function ouvrirRoman(romanId, roman) {
 }
 
 // ======================================
-// COUVERTURE PERSONNALISÉE DU ROMAN
-// ======================================
+// COUVERTURE PERSONNALISÉE SANS FIREBASE STORAGE
+// Les images sont compressées puis enregistrées dans novelCovers/{romanId}.
+
+async function compresserCouverture(fichier) {
+  const image = new Image();
+  const urlTemporaire = URL.createObjectURL(fichier);
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = urlTemporaire;
+    });
+    const limite = 900;
+    const facteur = Math.min(1, limite / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * facteur));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * facteur));
+    const contexte = canvas.getContext("2d");
+    contexte.fillStyle = "#ffffff";
+    contexte.fillRect(0, 0, canvas.width, canvas.height);
+    contexte.drawImage(image, 0, 0, canvas.width, canvas.height);
+    for (const qualite of [0.82, 0.72, 0.62, 0.52, 0.42]) {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", qualite));
+      if (blob && blob.size <= 450 * 1024) {
+        return await new Promise((resolve, reject) => {
+          const lecteur = new FileReader();
+          lecteur.onload = () => resolve(lecteur.result);
+          lecteur.onerror = reject;
+          lecteur.readAsDataURL(blob);
+        });
+      }
+    }
+    throw new Error("IMAGE_TROP_LOURDE");
+  } finally {
+    URL.revokeObjectURL(urlTemporaire);
+  }
+}
 
 element("boutonEnregistrerCouverture")?.addEventListener("click", async () => {
   if (!utilisateurActuel || !romanActuel || romanActuel.authorId !== utilisateurActuel.uid) {
     message("messageCouvertureRoman", "Seul l'auteur connecté peut modifier cette couverture.");
     return;
   }
-
-  const champFichier = element("fichierCouvertureRoman");
-  const fichier = champFichier?.files?.[0];
-
+  const fichier = element("fichierCouvertureRoman")?.files?.[0];
   if (!fichier) {
     message("messageCouvertureRoman", "Choisis d'abord une image.");
     return;
   }
-
-  const typesAutorises = ["image/jpeg", "image/png", "image/webp"];
-  if (!typesAutorises.includes(fichier.type)) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(fichier.type)) {
     message("messageCouvertureRoman", "Format refusé. Utilise JPG, PNG ou WebP.");
     return;
   }
   if (fichier.size > 5 * 1024 * 1024) {
-    message("messageCouvertureRoman", "L'image ne doit pas dépasser 5 Mo.");
+    message("messageCouvertureRoman", "L'image d'origine ne doit pas dépasser 5 Mo.");
     return;
   }
-
   const bouton = element("boutonEnregistrerCouverture");
   bouton.disabled = true;
-  message("messageCouvertureRoman", "Envoi de la couverture en cours...");
-
+  message("messageCouvertureRoman", "Compression et enregistrement en cours...");
   try {
-    const chemin = "novels/" + romanActuel.id + "/cover/main";
-    const imageRef = storageRef(storage, chemin);
-    await uploadBytes(imageRef, fichier, { contentType: fichier.type });
-    const url = await getDownloadURL(imageRef);
-
-    await updateDoc(doc(db, "novels", romanActuel.id), {
-      coverUrl: url,
+    const imageData = await compresserCouverture(fichier);
+    await setDoc(doc(db, "novelCovers", romanActuel.id), {
+      authorId: utilisateurActuel.uid,
+      imageData,
+      contentType: "image/jpeg",
       updatedAt: serverTimestamp()
     });
-
-    romanActuel.coverUrl = url;
+    romanActuel.imageCouverture = imageData;
     const apercu = element("apercuCouvertureRoman");
-    apercu.src = url;
+    apercu.src = imageData;
     apercu.hidden = false;
     element("boutonSupprimerCouverture").hidden = false;
-    message("messageCouvertureRoman", "Ta couverture a été enregistrée !");
+    message("messageCouvertureRoman", "Couverture enregistrée avec succès !");
     await afficherRomans();
   } catch (erreur) {
     console.error("Erreur d'enregistrement de la couverture :", erreur);
-    message("messageCouvertureRoman", "Envoi impossible. Vérifie que Firebase Storage est activé et que ses règles sont publiées.");
+    message("messageCouvertureRoman", erreur.message === "IMAGE_TROP_LOURDE"
+      ? "Cette image ne peut pas être assez compressée. Essaie une autre image."
+      : "Enregistrement impossible. Vérifie les règles Firestore.");
   } finally {
     bouton.disabled = false;
   }
@@ -1003,21 +1020,14 @@ element("boutonEnregistrerCouverture")?.addEventListener("click", async () => {
 element("boutonSupprimerCouverture")?.addEventListener("click", async () => {
   if (!utilisateurActuel || !romanActuel || romanActuel.authorId !== utilisateurActuel.uid) return;
   if (!confirm("Supprimer la couverture de ce roman ?")) return;
-
   const bouton = element("boutonSupprimerCouverture");
   bouton.disabled = true;
   try {
-    try {
-      await deleteObject(storageRef(storage, "novels/" + romanActuel.id + "/cover/main"));
-    } catch (erreur) {
-      if (erreur.code !== "storage/object-not-found") throw erreur;
-    }
-
-    await updateDoc(doc(db, "novels", romanActuel.id), {
-      coverUrl: "",
-      updatedAt: serverTimestamp()
-    });
-    romanActuel.coverUrl = "";
+    const couvertureRef = doc(db, "novelCovers", romanActuel.id);
+    const couvertureExistante = await getDoc(couvertureRef);
+    if (couvertureExistante.exists()) await deleteDoc(couvertureRef);
+    romanActuel.imageCouverture = "";
+    element("apercuCouvertureRoman").removeAttribute("src");
     element("apercuCouvertureRoman").hidden = true;
     bouton.hidden = true;
     element("fichierCouvertureRoman").value = "";
@@ -1025,7 +1035,7 @@ element("boutonSupprimerCouverture")?.addEventListener("click", async () => {
     await afficherRomans();
   } catch (erreur) {
     console.error("Erreur de suppression de la couverture :", erreur);
-    message("messageCouvertureRoman", "Impossible de supprimer la couverture. Vérifie les règles Firebase Storage.");
+    message("messageCouvertureRoman", "Impossible de supprimer la couverture. Vérifie les règles Firestore.");
   } finally {
     bouton.disabled = false;
   }
