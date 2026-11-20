@@ -809,8 +809,40 @@ async function afficherRomans() {
 
       carte.append(titre, description, boutonOuvrir);
 
-      // La suppression est réservée à l'auteur du roman.
+      const statutRoman = document.createElement("p");
+      statutRoman.className = "statut-roman";
+      statutRoman.textContent = roman.status === "Published" ? "✅ Roman publié" : "📝 Brouillon — visible uniquement par toi";
+      carte.appendChild(statutRoman);
+
+      // Seul l'auteur peut publier son roman.
       if (utilisateurActuel && roman.authorId === utilisateurActuel.uid) {
+        if (roman.status !== "Published") {
+          const boutonPublierRoman = document.createElement("button");
+          boutonPublierRoman.type = "button";
+          boutonPublierRoman.className = "primary-btn";
+          boutonPublierRoman.textContent = "🚀 Publier le roman";
+          boutonPublierRoman.addEventListener("click", async () => {
+            if (!confirm("Publier « " + (roman.title || "ce roman") + " » ? Il deviendra visible aux autres lecteurs.")) return;
+            boutonPublierRoman.disabled = true;
+            boutonPublierRoman.textContent = "Publication...";
+            try {
+              await updateDoc(doc(db, "novels", id), {
+                status: "Published",
+                updatedAt: serverTimestamp()
+              });
+              roman.status = "Published";
+              alert("Ton roman est maintenant publié et visible aux autres lecteurs !");
+              await afficherRomans();
+            } catch (erreur) {
+              console.error("Erreur de publication du roman :", erreur);
+              alert("Publication impossible. Vérifie les règles Firestore.");
+              boutonPublierRoman.disabled = false;
+              boutonPublierRoman.textContent = "🚀 Publier le roman";
+            }
+          });
+          carte.appendChild(boutonPublierRoman);
+        }
+
         const boutonSupprimerRoman = document.createElement("button");
         boutonSupprimerRoman.type = "button";
         boutonSupprimerRoman.className = "btn-supprimer";
