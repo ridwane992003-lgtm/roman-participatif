@@ -1175,7 +1175,7 @@ async function enregistrerEditionChapitre(publier = false) {
     await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitreEnEdition.id), {
       title: titre,
       content: contenu,
-      ...(publier ? {status:"Published", publishedAt:serverTimestamp()} : {}),
+      ...(publier ? {status:"Published"} : {}),
       updatedAt: serverTimestamp()
     });
     chapitreEnEdition.title = titre;
