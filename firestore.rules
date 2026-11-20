@@ -57,6 +57,23 @@ service cloud.firestore {
       }
     }
 
+    // COUVERTURES : image compressée stockée dans un document séparé.
+    match /novelCovers/{novelId} {
+      allow read: if connecte();
+      allow create, update: if connecte()
+        && get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasAll(['authorId', 'imageData', 'contentType', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['authorId', 'imageData', 'contentType', 'updatedAt'])
+        && request.resource.data.imageData is string
+        && request.resource.data.imageData.size() <= 650000
+        && request.resource.data.contentType == 'image/jpeg'
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if connecte()
+        && resource.data.authorId == request.auth.uid
+        && get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid;
+    }
+
     // ROMANS ET SOUS-COLLECTIONS
     match /novels/{novelId} {
       allow read: if connecte()
