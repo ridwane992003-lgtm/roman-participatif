@@ -115,7 +115,7 @@ function afficherPage(nomPage) {
     else bouton.removeAttribute("aria-current");
   });
 
-  if (nomPage === "chapitres") afficherChapitres();
+  if (nomPage === "chapitres") { afficherChapitres(); afficherRomansALire(); }
   if (nomPage === "romans") afficherRomans();
   if (nomPage === "editeurRoman" && romanActuel) afficherChapitresRoman();
   if (nomPage === "notifications") afficherNotifications();
@@ -737,6 +737,44 @@ async function afficherChapitres() {
 // onAuthStateChanged choisira ensuite automatiquement la bonne page.
 
 console.log("Roman Participatif : application prête.");
+// Romans publiés affichés dans la rubrique « Lire ».
+async function afficherRomansALire() {
+  const liste = element("listeRomansALire");
+  if (!liste || !utilisateurActuel) return;
+  liste.textContent = "Chargement des romans publiés...";
+  try {
+    const resultat = await getDocs(query(collection(db, "novels"), where("status", "==", "Published")));
+    liste.replaceChildren();
+    if (resultat.empty) {
+      liste.textContent = "Aucun roman publié pour le moment.";
+      return;
+    }
+    for (const d of resultat.docs) {
+      const roman = {id:d.id, ...d.data()};
+      const carte = creerElement("article", "carte-roman");
+      const titre = creerElement("h3", "", roman.title || "Roman sans titre");
+      const description = creerElement("p", "", roman.description || "Aucune description.");
+      const couvertureDoc = await getDoc(doc(db, "novelCovers", roman.id));
+      if (couvertureDoc.exists()) {
+        const img = document.createElement("img");
+        img.className = "couverture-carte-roman";
+        img.src = couvertureDoc.data().imageData;
+        img.alt = "Couverture de " + (roman.title || "ce roman");
+        img.loading = "lazy";
+        carte.appendChild(img);
+      }
+      const ouvrir = creerElement("button", "primary-btn", "📖 Lire ce roman");
+      ouvrir.type = "button";
+      ouvrir.addEventListener("click", () => ouvrirRoman(roman.id, roman, true));
+      carte.append(titre, description, ouvrir);
+      liste.appendChild(carte);
+    }
+  } catch (e) {
+    console.error("Erreur de chargement des romans à lire :", e);
+    liste.textContent = "Impossible de charger les romans publiés.";
+  }
+}
+
 // ======================================
 // 12. AFFICHER LES ROMANS
 // ======================================
@@ -945,9 +983,9 @@ element("boutonCreerRoman")?.addEventListener("click", async () => {
 // 14. OUVRIR UN ROMAN ET ÉCRIRE SES CHAPITRES
 // ======================================
 
-async function ouvrirRoman(romanId, roman) {
+async function ouvrirRoman(romanId, roman, lectureSeule = false) {
   romanActuel = { id: romanId, ...roman };
-  const estAuteur = !!utilisateurActuel && roman.authorId === utilisateurActuel.uid;
+  const estAuteur = !lectureSeule && !!utilisateurActuel && roman.authorId === utilisateurActuel.uid;
 
   element("titreRomanOuvert").textContent = roman.title || "Roman sans titre";
   element("descriptionRomanOuvert").textContent = roman.description || "";
