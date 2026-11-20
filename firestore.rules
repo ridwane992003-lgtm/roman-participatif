@@ -141,6 +141,35 @@ service cloud.firestore {
       }
 
       match /chapters/{chapterId} {
+        // Appréciations et commentaires des lecteurs sur les chapitres du roman.
+        match /likes/{userId} {
+          allow read: if connecte();
+          allow create: if profilExiste()
+            && request.auth.uid == userId
+            && request.resource.data.keys().hasOnly(['userId','createdAt'])
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.createdAt is timestamp
+            && get(/databases/$(database)/documents/novels/$(novelId)/chapters/$(chapterId)).data.status == 'Published';
+          allow delete: if connecte() && request.auth.uid == userId;
+          allow update: if false;
+        }
+
+        match /comments/{commentId} {
+          allow read: if connecte();
+          allow create: if profilExiste()
+            && request.resource.data.keys().hasOnly(['text','authorId','authorName','createdAt'])
+            && request.resource.data.keys().hasAll(['text','authorId','authorName','createdAt'])
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.authorName == monProfil().username
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000
+            && request.resource.data.createdAt is timestamp
+            && get(/databases/$(database)/documents/novels/$(novelId)/chapters/$(chapterId)).data.status == 'Published';
+          allow update: if false;
+          allow delete: if connecte() && resource.data.authorId == request.auth.uid;
+        }
+
         function auteurDuRoman() {
           return profilExiste()
             && get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid;
