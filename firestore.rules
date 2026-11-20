@@ -39,7 +39,9 @@ service cloud.firestore {
         && request.resource.data.username.size() <= 30
         && request.resource.data.anonymous is bool;
 
-      allow delete: if false;
+      // Seul l'auteur peut supprimer son roman.
+      // Les chapitres et abonnements sont supprimés séparément par l'application.
+      allow delete: if connecte() && resource.data.authorId == request.auth.uid;
 
       // Notifications personnelles imbriquées (compatibilité avec le modèle initial).
       match /notifications/{notificationId} {
@@ -115,7 +117,9 @@ service cloud.firestore {
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.notificationsEnabled is bool;
 
-        allow delete: if connecte() && request.auth.uid == followerId;
+        allow delete: if connecte()
+          && (request.auth.uid == followerId
+            || get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid);
       }
 
       match /chapters/{chapterId} {
