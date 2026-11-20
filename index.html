@@ -19,6 +19,7 @@
       <small>Une histoire, des milliers de voix</small>
     </span>
   </a>
+  <button id="boutonNotifications" class="notification-trigger" type="button" aria-label="Ouvrir les notifications">🔔 <span id="compteurNotifications">0</span></button>
 </header>
 
 <main class="app-main">
@@ -87,11 +88,43 @@
         <input type="checkbox" id="anonymeNouveauChapitre">
         Écrire sous le nom « Auteur anonyme »
       </label>
-      <button class="primary-btn" type="submit">Enregistrer le chapitre</button>
+      <button class="primary-btn" type="submit">Enregistrer le brouillon</button>
       <p id="messageNouveauChapitre" class="message" aria-live="polite"></p>
     </form>
     <h2>Les chapitres de ce roman</h2>
     <div id="listeChapitresRoman"><p>Chargement...</p></div>
+  </section>
+
+  <!-- ÉDITEUR COMPLET D'UN CHAPITRE -->
+  <section id="editeurChapitre" class="page" hidden>
+    <button class="secondary-btn" type="button" id="retourEditeurRoman">← Retour au roman</button>
+    <div class="section-heading">
+      <span class="eyebrow">ATELIER D'ÉCRITURE</span>
+      <h1>Relire et corriger le chapitre</h1>
+      <p>Tout le texte est affiché dans un éditeur confortable pour repérer et corriger les fautes.</p>
+    </div>
+    <form id="formEditionChapitre" class="form-card editor-form">
+      <label for="titreEditionChapitre">Titre du chapitre</label>
+      <input id="titreEditionChapitre" type="text" maxlength="150" required>
+      <label for="texteEditionChapitre">Texte intégral</label>
+      <textarea id="texteEditionChapitre" class="grand-editeur" required></textarea>
+      <p id="messageEditionChapitre" class="message" aria-live="polite"></p>
+      <div class="editor-actions">
+        <button class="secondary-btn" type="button" id="annulerEditionChapitre">Annuler</button>
+        <button class="secondary-btn" type="submit" id="enregistrerEditionChapitre">Enregistrer les corrections</button>
+        <button class="primary-btn" type="button" id="publierEditionChapitre">Publier le chapitre</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- NOTIFICATIONS -->
+  <section id="notifications" class="page" hidden>
+    <div class="section-heading">
+      <span class="eyebrow">VOTRE ACTIVITÉ</span>
+      <h1>Notifications</h1>
+      <p>Retrouve ici les commentaires et appréciations reçus sur tes chapitres.</p>
+    </div>
+    <div id="listeNotifications"><p>Chargement des notifications...</p></div>
   </section>
 
   <!-- LECTURE -->
@@ -252,6 +285,9 @@
   </button>
   <button class="nav-item" type="button" data-page="communaute">
     <span class="nav-icon">♧</span><span>Communauté</span>
+  </button>
+  <button class="nav-item" type="button" id="navNotifications">
+    <span class="nav-icon">🔔</span><span>Alertes</span>
   </button>
   <button class="nav-item" type="button" data-page="compte">
     <span class="nav-icon">○</span><span>Compte</span>
