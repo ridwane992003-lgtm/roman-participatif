@@ -39,9 +39,8 @@ service cloud.firestore {
         && request.resource.data.username.size() <= 30
         && request.resource.data.anonymous is bool;
 
-      // Seul l'auteur peut supprimer son roman.
-      // Les chapitres et abonnements sont supprimés séparément par l'application.
-      allow delete: if connecte() && resource.data.authorId == request.auth.uid;
+      // Un profil utilisateur ne peut pas être supprimé depuis l'application.
+      allow delete: if false;
 
       // Notifications personnelles imbriquées (compatibilité avec le modèle initial).
       match /notifications/{notificationId} {
@@ -95,7 +94,9 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.status in ['Published', 'Draft'];
 
-      allow delete: if false;
+      // Seul l'auteur du roman peut le supprimer, après suppression
+      // de ses chapitres et abonnements par l'application.
+      allow delete: if connecte() && resource.data.authorId == request.auth.uid;
 
       match /followers/{followerId} {
         allow read: if connecte()
