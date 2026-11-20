@@ -78,15 +78,17 @@
       <h1 id="titreRomanOuvert">Mon roman</h1>
       <p id="descriptionRomanOuvert"></p>
     </div>
-    <div class="form-card cover-editor">
-      <h2>Couverture de mon roman</h2>
-      <p>Choisis une image JPG, PNG ou WebP (5 Mo maximum). Elle sera compressée automatiquement avant l'enregistrement.</p>
-      <img id="apercuCouvertureRoman" class="cover-preview" alt="Aperçu de la couverture du roman" hidden>
-      <label for="fichierCouvertureRoman">Choisir une image de couverture</label>
-      <input id="fichierCouvertureRoman" type="file" accept="image/jpeg,image/png,image/webp">
-      <button id="boutonEnregistrerCouverture" class="primary-btn" type="button">Enregistrer la couverture</button>
-      <button id="boutonSupprimerCouverture" class="secondary-btn" type="button" hidden>Supprimer la couverture</button>
-      <p id="messageCouvertureRoman" class="message" aria-live="polite"></p>
+    <div id="zoneGestionCouverture">
+      <div class="form-card cover-editor">
+        <h2>Couverture de mon roman</h2>
+        <p>Choisis une image JPG, PNG ou WebP (5 Mo maximum). Elle sera compressée automatiquement avant l'enregistrement.</p>
+        <img id="apercuCouvertureRoman" class="cover-preview" alt="Aperçu de la couverture du roman" hidden>
+        <label for="fichierCouvertureRoman">Choisir une image de couverture</label>
+        <input id="fichierCouvertureRoman" type="file" accept="image/jpeg,image/png,image/webp">
+        <button id="boutonEnregistrerCouverture" class="primary-btn" type="button">Enregistrer la couverture</button>
+        <button id="boutonSupprimerCouverture" class="secondary-btn" type="button" hidden>Supprimer la couverture</button>
+        <p id="messageCouvertureRoman" class="message" aria-live="polite"></p>
+      </div>
     </div>
 
     <form id="formNouveauChapitre" class="form-card">
