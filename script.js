@@ -47,6 +47,7 @@ let chargementTermine = false;
 let etapeConnexion = 1;
 let romanActuel = null;
 let chapitreEnEdition = null;
+let lectureSeuleRoman = false;
 
 // ======================================
 // 2. OUTILS
@@ -985,6 +986,7 @@ element("boutonCreerRoman")?.addEventListener("click", async () => {
 
 async function ouvrirRoman(romanId, roman, lectureSeule = false) {
   romanActuel = { id: romanId, ...roman };
+  lectureSeuleRoman = lectureSeule;
   const estAuteur = !lectureSeule && !!utilisateurActuel && roman.authorId === utilisateurActuel.uid;
 
   element("titreRomanOuvert").textContent = roman.title || "Roman sans titre";
@@ -1284,7 +1286,7 @@ element("annulerEditionChapitre")?.addEventListener("click", () => afficherPage(
 async function afficherChapitresRoman() {
   const liste = element("listeChapitresRoman");
   if (!liste || !romanActuel || !utilisateurActuel) return;
-  const estAuteur = romanActuel.authorId === utilisateurActuel.uid;
+  const estAuteur = !lectureSeuleRoman && romanActuel.authorId === utilisateurActuel.uid;
   liste.textContent = "Chargement des chapitres...";
   try {
     const chapitresRef = collection(db, "novels", romanActuel.id, "chapters");
