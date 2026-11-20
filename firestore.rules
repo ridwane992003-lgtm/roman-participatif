@@ -265,6 +265,9 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000
         && request.resource.data.chapterId is string
+        && request.resource.data.chapterId.size() > 0
+        && exists(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId))
+        && get(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId)).data.authorId == request.resource.data.recipientId
         && request.resource.data.read == false
         && request.resource.data.createdAt is timestamp;
 
