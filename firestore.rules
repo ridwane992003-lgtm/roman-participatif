@@ -1,0 +1,279 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function connecte() {
+      return request.auth != null;
+    }
+
+    function profilExiste() {
+      return connecte()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function monProfil() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // PROFILS
+    match /users/{userId} {
+      allow create: if connecte()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['username', 'email', 'anonymous', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['username', 'email', 'anonymous', 'createdAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 3
+        && request.resource.data.username.size() <= 30
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.anonymous is bool
+        && request.resource.data.createdAt is timestamp;
+
+      allow read: if connecte() && request.auth.uid == userId;
+
+      allow update: if connecte()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'anonymous'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 3
+        && request.resource.data.username.size() <= 30
+        && request.resource.data.anonymous is bool;
+
+      allow delete: if false;
+
+      // Notifications personnelles imbriquées (compatibilité avec le modèle initial).
+      match /notifications/{notificationId} {
+        allow read: if connecte() && request.auth.uid == userId;
+        allow create: if connecte()
+          && request.auth.uid == userId
+          && request.resource.data.read == false
+          && request.resource.data.createdAt is timestamp;
+        allow update: if connecte()
+          && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read is bool;
+        allow delete: if connecte() && request.auth.uid == userId;
+      }
+    }
+
+    // ROMANS ET SOUS-COLLECTIONS
+    match /novels/{novelId} {
+      allow read: if connecte()
+        && (resource.data.status == 'Published' || resource.data.authorId == request.auth.uid);
+
+      allow create: if profilExiste()
+        && request.resource.data.keys().hasAll(['title','description','coverUrl','authorId','authorName','createdAt','updatedAt','status'])
+        && request.resource.data.keys().hasOnly(['title','description','coverUrl','authorId','authorName','createdAt','updatedAt','status'])
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorName == monProfil().username
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 5000
+        && request.resource.data.coverUrl is string
+        && request.resource.data.coverUrl.size() <= 2000
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.status in ['Published', 'Draft'];
+
+      allow update: if connecte()
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.authorName == resource.data.authorName
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','description','coverUrl','updatedAt','status'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 5000
+        && request.resource.data.coverUrl is string
+        && request.resource.data.coverUrl.size() <= 2000
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.status in ['Published', 'Draft'];
+
+      allow delete: if false;
+
+      match /followers/{followerId} {
+        allow read: if connecte()
+          && (request.auth.uid == followerId
+            || get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid);
+
+        allow create: if profilExiste()
+          && request.auth.uid == followerId
+          && request.resource.data.keys().hasAll(['userId','notificationsEnabled','createdAt'])
+          && request.resource.data.keys().hasOnly(['userId','notificationsEnabled','createdAt'])
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.notificationsEnabled is bool
+          && request.resource.data.createdAt is timestamp
+          && get(/databases/$(database)/documents/novels/$(novelId)).data.status == 'Published';
+
+        allow update: if connecte()
+          && request.auth.uid == followerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notificationsEnabled'])
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.notificationsEnabled is bool;
+
+        allow delete: if connecte() && request.auth.uid == followerId;
+      }
+
+      match /chapters/{chapterId} {
+        function auteurDuRoman() {
+          return profilExiste()
+            && get(/databases/$(database)/documents/novels/$(novelId)).data.authorId == request.auth.uid;
+        }
+
+        allow read: if connecte() && (resource.data.status == 'Published' || auteurDuRoman());
+
+        allow create: if auteurDuRoman()
+          && request.resource.data.keys().hasAll(['title','content','authorId','authorName','anonymous','status','createdAt','updatedAt'])
+          && request.resource.data.keys().hasOnly(['title','content','authorId','authorName','anonymous','status','createdAt','updatedAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 2
+          && request.resource.data.title.size() <= 150
+          && request.resource.data.content is string
+          && request.resource.data.content.size() >= 10
+          && request.resource.data.anonymous is bool
+          && request.resource.data.authorName == (request.resource.data.anonymous ? 'Auteur anonyme' : monProfil().username)
+          && request.resource.data.status in ['Draft', 'Published']
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.updatedAt is timestamp;
+
+        allow update: if auteurDuRoman()
+          && resource.data.authorId == request.auth.uid
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.anonymous == resource.data.anonymous
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','content','status','updatedAt'])
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 2
+          && request.resource.data.title.size() <= 150
+          && request.resource.data.content is string
+          && request.resource.data.content.size() >= 10
+          && request.resource.data.status in ['Draft', 'Published']
+          && request.resource.data.updatedAt is timestamp;
+
+        allow delete: if auteurDuRoman() && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    // ANCIEN MODÈLE UTILISÉ PAR L'APPLICATION : chapters/{chapterId}
+    match /chapters/{chapterId} {
+      allow read: if connecte();
+
+      allow create: if profilExiste()
+        && request.resource.data.keys().hasAll(['title','content','authorId','authorName','anonymous','createdAt','updatedAt'])
+        && request.resource.data.keys().hasOnly(['title','content','authorId','authorName','anonymous','createdAt','updatedAt'])
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.content is string
+        && request.resource.data.content.size() >= 10
+        && request.resource.data.anonymous is bool
+        && request.resource.data.authorName == (request.resource.data.anonymous ? 'Auteur anonyme' : monProfil().username)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+
+      allow update: if connecte()
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId
+        && request.resource.data.authorName == resource.data.authorName
+        && request.resource.data.anonymous == resource.data.anonymous
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title','content','updatedAt'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 2
+        && request.resource.data.title.size() <= 150
+        && request.resource.data.content is string
+        && request.resource.data.content.size() >= 10
+        && request.resource.data.updatedAt is timestamp;
+
+      allow delete: if connecte() && resource.data.authorId == request.auth.uid;
+
+      match /likes/{likeId} {
+        allow read: if connecte();
+        allow create: if connecte()
+          && likeId == request.auth.uid
+          && request.resource.data.keys().hasAll(['userId','createdAt'])
+          && request.resource.data.keys().hasOnly(['userId','createdAt'])
+          && request.resource.data.userId == request.auth.uid;
+        allow delete: if connecte() && likeId == request.auth.uid;
+        allow update: if false;
+      }
+
+      match /comments/{commentId} {
+        allow read: if connecte();
+        allow create: if profilExiste()
+          && request.resource.data.keys().hasAll(['text','authorId','authorName','createdAt'])
+          && request.resource.data.keys().hasOnly(['text','authorId','authorName','createdAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName == monProfil().username
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000;
+
+        allow update: if connecte()
+          && resource.data.authorId == request.auth.uid
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000;
+
+        allow delete: if connecte() && resource.data.authorId == request.auth.uid;
+
+        match /replies/{replyId} {
+          allow read: if connecte();
+          allow create: if profilExiste()
+            && request.resource.data.keys().hasAll(['text','authorId','authorName','createdAt'])
+            && request.resource.data.keys().hasOnly(['text','authorId','authorName','createdAt'])
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.authorName == monProfil().username
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000;
+
+          allow update: if connecte()
+            && resource.data.authorId == request.auth.uid
+            && request.resource.data.authorId == resource.data.authorId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text'])
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000;
+
+          allow delete: if connecte() && resource.data.authorId == request.auth.uid;
+        }
+      }
+    }
+
+    // NOTIFICATIONS : chemin réellement utilisé par script.js
+    match /notifications/{notificationId} {
+      allow read: if connecte()
+        && resource.data.recipientId == request.auth.uid;
+
+      allow create: if profilExiste()
+        && request.resource.data.keys().hasAll(['recipientId','actorId','actorName','type','text','chapterId','read','createdAt'])
+        && request.resource.data.keys().hasOnly(['recipientId','actorId','actorName','type','text','chapterId','read','createdAt'])
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.recipientId is string
+        && request.resource.data.recipientId != request.auth.uid
+        && request.resource.data.actorName is string
+        && request.resource.data.type in ['like','comment','reply']
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.chapterId is string
+        && request.resource.data.read == false
+        && request.resource.data.createdAt is timestamp;
+
+      allow update: if connecte()
+        && resource.data.recipientId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
+
+      allow delete: if connecte() && resource.data.recipientId == request.auth.uid;
+    }
+  }
+}
