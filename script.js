@@ -804,7 +804,7 @@ async function afficherRomans() {
       }
       boutonOuvrir.type = "button";
       boutonOuvrir.className = "primary-btn";
-      boutonOuvrir.textContent = "Ouvrir et écrire";
+      boutonOuvrir.textContent = roman.authorId === utilisateurActuel.uid ? "Gérer mon roman" : "📖 Lire le roman";
       boutonOuvrir.addEventListener("click", () => ouvrirRoman(id, roman));
 
       carte.append(titre, description, boutonOuvrir);
@@ -947,19 +947,28 @@ element("boutonCreerRoman")?.addEventListener("click", async () => {
 
 async function ouvrirRoman(romanId, roman) {
   romanActuel = { id: romanId, ...roman };
+  const estAuteur = !!utilisateurActuel && roman.authorId === utilisateurActuel.uid;
 
-  element("titreRomanOuvert").textContent = roman.title || "Mon roman";
+  element("titreRomanOuvert").textContent = roman.title || "Roman sans titre";
   element("descriptionRomanOuvert").textContent = roman.description || "";
   const apercuCouverture = element("apercuCouvertureRoman");
-  const boutonSupprimerCouverture = element("boutonSupprimerCouverture");
   if (apercuCouverture) {
     apercuCouverture.src = roman.coverUrl || "";
     apercuCouverture.hidden = !roman.coverUrl;
   }
-  if (boutonSupprimerCouverture) boutonSupprimerCouverture.hidden = !roman.coverUrl;
+
+  // Les outils d'écriture et de gestion sont réservés à l'auteur.
+  ["zoneGestionCouverture", "formNouveauChapitre"].forEach(id => {
+    const zone = element(id);
+    if (zone) zone.hidden = !estAuteur;
+  });
+  const titreGestion = element("titreGestionChapitres");
+  if (titreGestion) titreGestion.textContent = estAuteur ? "Gérer les chapitres de mon roman" : "Lire le roman";
+  const retour = element("retourRomans");
+  if (retour) retour.textContent = estAuteur ? "← Retour à mes romans" : "← Retour à la bibliothèque";
   if (element("fichierCouvertureRoman")) element("fichierCouvertureRoman").value = "";
+  if (element("formNouveauChapitre")) element("formNouveauChapitre").reset();
   message("messageCouvertureRoman", "");
-  element("formNouveauChapitre").reset();
   message("messageNouveauChapitre", "");
   afficherPage("editeurRoman");
 }
@@ -1236,81 +1245,123 @@ element("annulerEditionChapitre")?.addEventListener("click", () => afficherPage(
 
 async function afficherChapitresRoman() {
   const liste = element("listeChapitresRoman");
-  if (!liste || !romanActuel) return;
-
+  if (!liste || !romanActuel || !utilisateurActuel) return;
+  const estAuteur = romanActuel.authorId === utilisateurActuel.uid;
   liste.textContent = "Chargement des chapitres...";
   try {
-    const resultat = await getDocs(
-      collection(db, "novels", romanActuel.id, "chapters")
-    );
+    const chapitresRef = collection(db, "novels", romanActuel.id, "chapters");
+    const resultat = estAuteur
+      ? await getDocs(chapitresRef)
+      : await getDocs(query(chapitresRef, where("status", "==", "Published")));
 
     liste.replaceChildren();
-
     if (resultat.empty) {
-      liste.textContent = "Aucun chapitre pour le moment. Écris le premier ci-dessus.";
+      liste.textContent = estAuteur
+        ? "Aucun chapitre pour le moment. Écris le premier ci-dessus."
+        : "Aucun chapitre publié dans ce roman pour le moment.";
       return;
     }
 
     const chapitres = resultat.docs.map(d => ({ id: d.id, ...d.data() }));
     chapitres.sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
 
-    chapitres.forEach((chapitre, index) => {
+    for (const [index, chapitre] of chapitres.entries()) {
       const carte = creerElement("article", "chapitre");
       carte.appendChild(creerElement("h3", "", "Chapitre " + (index + 1) + " : " + chapitre.title));
-      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme") + (chapitre.status === "Published" ? " · Publié" : " · Brouillon")));
+      carte.appendChild(creerElement("p", "auteur", "Par " + (chapitre.authorName || "Auteur anonyme")));
       carte.appendChild(creerElement("div", "contenu-chapitre", chapitre.content || ""));
 
-      // Seul l'auteur peut corriger ou supprimer son chapitre.
-      if (utilisateurActuel && utilisateurActuel.uid === chapitre.authorId) {
-        const actions = creerElement("div", "actions-chapitre");
-
+      if (estAuteur) {
+        const actionsAuteur = creerElement("div", "actions-chapitre");
         const boutonModifier = creerElement("button", "btn-modifier", "✏️ Modifier");
         boutonModifier.type = "button";
         boutonModifier.addEventListener("click", () => ouvrirEditeurChapitre(chapitre));
-
         const boutonSupprimer = creerElement("button", "btn-supprimer", "🗑️ Effacer");
         boutonSupprimer.type = "button";
-        boutonSupprimer.title = "Supprimer ce chapitre";
-        boutonSupprimer.setAttribute("aria-label", "Supprimer ce chapitre");
         boutonSupprimer.addEventListener("click", async () => {
-          if (!confirm("Veux-tu vraiment effacer ce chapitre ? Cette action est définitive.")) return;
-
-          boutonSupprimer.disabled = true;
+          if (!confirm("Supprimer définitivement ce chapitre ?")) return;
           try {
             await deleteDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id));
             await afficherChapitresRoman();
-          } catch (erreur) {
-            console.error("Erreur de suppression du chapitre :", erreur);
-            alert("Impossible d'effacer ce chapitre. Vérifie les règles Firestore.");
-          } finally {
-            boutonSupprimer.disabled = false;
-          }
+          } catch (e) { console.error(e); alert("Suppression impossible."); }
         });
-
+        actionsAuteur.append(boutonModifier, boutonSupprimer);
         if (chapitre.status !== "Published") {
-          const boutonPublier = creerElement("button", "btn-publier", "🚀 Publier");
-          boutonPublier.type = "button";
-          boutonPublier.addEventListener("click", async () => {
-            if (!confirm("Publier ce chapitre pour le rendre visible aux lecteurs ?")) return;
-            boutonPublier.disabled = true;
+          const publier = creerElement("button", "btn-publier", "🚀 Publier");
+          publier.type = "button";
+          publier.addEventListener("click", async () => {
             try {
               await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", updatedAt:serverTimestamp()});
               await afficherChapitresRoman();
-            } catch (erreur) {
-              console.error("Erreur de publication :", erreur);
-              alert("Publication impossible. Vérifie les règles Firestore.");
-            } finally { boutonPublier.disabled = false; }
+            } catch(e) { console.error(e); alert("Publication impossible."); }
           });
-          actions.appendChild(boutonPublier);
+          actionsAuteur.appendChild(publier);
         }
-        actions.append(boutonModifier, boutonSupprimer);
-        carte.appendChild(actions);
-      }
+        carte.appendChild(actionsAuteur);
+      } else {
+        const chapitreRef = doc(db, "novels", romanActuel.id, "chapters", chapitre.id);
+        const likesRef = collection(db, "novels", romanActuel.id, "chapters", chapitre.id, "likes");
+        const monLikeRef = doc(db, "novels", romanActuel.id, "chapters", chapitre.id, "likes", utilisateurActuel.uid);
+        const actionsLecture = creerElement("div", "actions-chapitre");
+        const boutonLike = creerElement("button", "primary-btn", "♡ J'aime");
+        boutonLike.type = "button";
+        const monLike = await getDoc(monLikeRef);
+        if (monLike.exists()) boutonLike.textContent = "♥ J'aime";
+        const totalLikes = await getDocs(likesRef);
+        actionsLecture.append(boutonLike, creerElement("span", "", totalLikes.size + " appréciation(s)"));
+        boutonLike.addEventListener("click", async () => {
+          boutonLike.disabled = true;
+          try {
+            const actuel = await getDoc(monLikeRef);
+            if (actuel.exists()) await deleteDoc(monLikeRef);
+            else await setDoc(monLikeRef, {userId:utilisateurActuel.uid, createdAt:serverTimestamp()});
+            await afficherChapitresRoman();
+          } catch(e) { console.error(e); alert("Impossible d'enregistrer ton appréciation."); }
+          finally { boutonLike.disabled = false; }
+        });
+        carte.appendChild(actionsLecture);
 
+        const zoneCommentaires = creerElement("div", "commentaires");
+        zoneCommentaires.appendChild(creerElement("h4", "", "Commentaires"));
+        const commentairesRef = collection(db, "novels", romanActuel.id, "chapters", chapitre.id, "comments");
+        const resultatCommentaires = await getDocs(commentairesRef);
+        resultatCommentaires.forEach(d => {
+          const commentaire = d.data();
+          const bloc = creerElement("div", "commentaire");
+          bloc.appendChild(creerElement("strong", "", commentaire.authorName || "Membre"));
+          bloc.appendChild(creerElement("p", "", commentaire.text || ""));
+          zoneCommentaires.appendChild(bloc);
+        });
+        const formulaire = document.createElement("form");
+        const champ = document.createElement("textarea");
+        champ.placeholder = "Écris ton commentaire… ajoute les emojis de ton choix 😊❤️📚";
+        champ.maxLength = 2000;
+        champ.required = true;
+        const boutonEnvoyer = creerElement("button", "primary-btn", "Envoyer le commentaire");
+        boutonEnvoyer.type = "submit";
+        formulaire.append(champ, boutonEnvoyer);
+        formulaire.addEventListener("submit", async e => {
+          e.preventDefault();
+          const texte = champ.value.trim();
+          if (!texte) return;
+          boutonEnvoyer.disabled = true;
+          try {
+            await addDoc(commentairesRef, {
+              text:texte, authorId:utilisateurActuel.uid,
+              authorName:profilActuel?.username || "Membre",
+              createdAt:serverTimestamp()
+            });
+            await afficherChapitresRoman();
+          } catch(err) { console.error(err); alert("Impossible d'envoyer le commentaire."); }
+          finally { boutonEnvoyer.disabled = false; }
+        });
+        zoneCommentaires.appendChild(formulaire);
+        carte.appendChild(zoneCommentaires);
+      }
       liste.appendChild(carte);
-    });
+    }
   } catch (erreur) {
     console.error("Erreur de lecture des chapitres du roman :", erreur);
-    liste.textContent = "Impossible de charger les chapitres. Les règles Firebase doivent autoriser l'accès à cette sous-collection.";
+    liste.textContent = "Impossible de charger les chapitres. Vérifie les règles Firestore.";
   }
 }
