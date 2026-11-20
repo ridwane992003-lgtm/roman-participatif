@@ -800,6 +800,52 @@ async function afficherRomans() {
       boutonOuvrir.addEventListener("click", () => ouvrirRoman(id, roman));
 
       carte.append(titre, description, boutonOuvrir);
+
+      // La suppression est réservée à l'auteur du roman.
+      if (utilisateurActuel && roman.authorId === utilisateurActuel.uid) {
+        const boutonSupprimerRoman = document.createElement("button");
+        boutonSupprimerRoman.type = "button";
+        boutonSupprimerRoman.className = "btn-supprimer";
+        boutonSupprimerRoman.textContent = "🗑️ Supprimer mon roman";
+        boutonSupprimerRoman.addEventListener("click", async () => {
+          const confirmation = confirm(
+            "Supprimer définitivement « " + (roman.title || "ce roman") +
+            " » ? Tous ses chapitres et ses abonnements seront également supprimés. Cette action est irréversible."
+          );
+          if (!confirmation) return;
+
+          boutonSupprimerRoman.disabled = true;
+          boutonSupprimerRoman.textContent = "Suppression...";
+          try {
+            // Firestore ne supprime pas automatiquement les sous-collections.
+            const chapitres = await getDocs(
+              collection(db, "novels", id, "chapters")
+            );
+            for (const chapitreDoc of chapitres.docs) {
+              await deleteDoc(doc(db, "novels", id, "chapters", chapitreDoc.id));
+            }
+
+            const abonnes = await getDocs(
+              collection(db, "novels", id, "followers")
+            );
+            for (const abonneDoc of abonnes.docs) {
+              await deleteDoc(doc(db, "novels", id, "followers", abonneDoc.id));
+            }
+
+            await deleteDoc(doc(db, "novels", id));
+            if (romanActuel?.id === id) romanActuel = null;
+            alert("Ton roman et ses chapitres ont été supprimés.");
+            await afficherRomans();
+          } catch (erreur) {
+            console.error("Erreur de suppression du roman :", erreur);
+            alert("Suppression impossible. Vérifie les règles Firestore et réessaie.");
+            boutonSupprimerRoman.disabled = false;
+            boutonSupprimerRoman.textContent = "🗑️ Supprimer mon roman";
+          }
+        });
+        carte.appendChild(boutonSupprimerRoman);
+      }
+
       liste.appendChild(carte);
     });
 
