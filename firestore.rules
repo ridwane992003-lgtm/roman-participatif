@@ -300,27 +300,58 @@ service cloud.firestore {
       }
     }
 
-    // NOTIFICATIONS : chemin réellement utilisé par script.js
+    // NOTIFICATIONS : romans suivis, publications de chapitres, J'aime et commentaires.
     match /notifications/{notificationId} {
       allow read: if connecte()
         && resource.data.recipientId == request.auth.uid;
 
       allow create: if profilExiste()
-        && request.resource.data.keys().hasAll(['recipientId','actorId','actorName','type','text','chapterId','read','createdAt'])
-        && request.resource.data.keys().hasOnly(['recipientId','actorId','actorName','type','text','chapterId','read','createdAt'])
+        && request.resource.data.keys().hasAll(['recipientId','actorId','actorName','type','text','novelId','chapterId','read','createdAt'])
+        && request.resource.data.keys().hasOnly(['recipientId','actorId','actorName','type','text','novelId','chapterId','read','createdAt'])
         && request.resource.data.actorId == request.auth.uid
         && request.resource.data.recipientId is string
         && request.resource.data.recipientId != request.auth.uid
         && request.resource.data.actorName is string
-        && request.resource.data.type in ['like','comment','reply']
+        && request.resource.data.type in ['like','comment','reply','chapter','novel']
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000
+        && request.resource.data.novelId is string
         && request.resource.data.chapterId is string
-        && request.resource.data.chapterId.size() > 0
-        && exists(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId))
-        && get(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId)).data.authorId == request.resource.data.recipientId
         && request.resource.data.read == false
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && (
+          (
+            request.resource.data.type == 'novel'
+            && request.resource.data.novelId.size() > 0
+            && request.resource.data.chapterId == ''
+            && exists(/databases/$(database)/documents/novels/$(request.resource.data.novelId))
+            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.authorId == request.auth.uid
+            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.status == 'Published'
+            && exists(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/followers/$(request.resource.data.recipientId))
+            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/followers/$(request.resource.data.recipientId)).data.notificationsEnabled == true
+          )
+          ||
+          (
+            request.resource.data.type in ['like','comment','chapter']
+            && request.resource.data.novelId.size() > 0
+            && request.resource.data.chapterId.size() > 0
+            && exists(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/chapters/$(request.resource.data.chapterId))
+            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/chapters/$(request.resource.data.chapterId)).data.status == 'Published'
+            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.authorId == request.resource.data.recipientId
+            && (
+              (request.resource.data.type == 'chapter' && request.auth.uid == request.resource.data.recipientId)
+              || (request.resource.data.type in ['like','comment'] && request.auth.uid != request.resource.data.recipientId)
+            )
+          )
+          ||
+          (
+            request.resource.data.type in ['like','comment','reply']
+            && request.resource.data.novelId == ''
+            && request.resource.data.chapterId.size() > 0
+            && exists(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId))
+            && get(/databases/$(database)/documents/chapters/$(request.resource.data.chapterId)).data.authorId == request.resource.data.recipientId
+          )
+        );
 
       allow update: if connecte()
         && resource.data.recipientId == request.auth.uid
