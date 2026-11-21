@@ -310,7 +310,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['recipientId','actorId','actorName','type','text','novelId','chapterId','read','createdAt'])
         && request.resource.data.actorId == request.auth.uid
         && request.resource.data.recipientId is string
-        && request.resource.data.recipientId != request.auth.uid
+        && (request.resource.data.recipientId != request.auth.uid || request.resource.data.type == 'chapter')
         && request.resource.data.actorName is string
         && request.resource.data.type in ['like','comment','reply','chapter','novel']
         && request.resource.data.text is string
@@ -337,10 +337,19 @@ service cloud.firestore {
             && request.resource.data.chapterId.size() > 0
             && exists(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/chapters/$(request.resource.data.chapterId))
             && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/chapters/$(request.resource.data.chapterId)).data.status == 'Published'
-            && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.authorId == request.resource.data.recipientId
             && (
-              (request.resource.data.type == 'chapter' && request.auth.uid == request.resource.data.recipientId)
-              || (request.resource.data.type in ['like','comment'] && request.auth.uid != request.resource.data.recipientId)
+              (
+                request.resource.data.type in ['like','comment']
+                && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.authorId == request.resource.data.recipientId
+                && request.auth.uid != request.resource.data.recipientId
+              )
+              ||
+              (
+                request.resource.data.type == 'chapter'
+                && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)).data.authorId == request.auth.uid
+                && exists(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/followers/$(request.resource.data.recipientId))
+                && get(/databases/$(database)/documents/novels/$(request.resource.data.novelId)/followers/$(request.resource.data.recipientId)).data.notificationsEnabled == true
+              )
             )
           )
           ||
