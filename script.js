@@ -21,6 +21,7 @@ import {
   query,
   where,
   updateDoc,
+  onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
@@ -48,6 +49,7 @@ let etapeConnexion = 1;
 let romanActuel = null;
 let chapitreEnEdition = null;
 let lectureSeuleRoman = false;
+let arretEcouteNotifications = null;
 
 // ======================================
 // 2. OUTILS
@@ -316,11 +318,16 @@ onAuthStateChanged(auth, async (user) => {
     // CONNEXION RÉUSSIE : DIRECTION AUTOMATIQUE À L'ACCUEIL
     afficherPage("accueil");
 
-    // Recharge les chapitres et les notifications du membre connecté.
+    // Recharge les chapitres et active le compteur de notifications en temps réel.
+    demarrerEcouteNotifications();
     await afficherChapitres();
     await actualiserCompteurNotifications();
 
   } else {
+    if (arretEcouteNotifications) {
+      arretEcouteNotifications();
+      arretEcouteNotifications = null;
+    }
     element("zoneMembre").hidden = true;
     afficherConnexion();
 
@@ -1170,6 +1177,22 @@ async function actualiserCompteurNotifications() {
   } catch (erreur) {
     console.warn("Compteur des notifications indisponible :", erreur);
   }
+}
+
+function demarrerEcouteNotifications() {
+  if (arretEcouteNotifications) arretEcouteNotifications();
+  if (!utilisateurActuel) return;
+  const notificationsRef = query(
+    collection(db, "notifications"),
+    where("recipientId", "==", utilisateurActuel.uid)
+  );
+  arretEcouteNotifications = onSnapshot(notificationsRef, resultat => {
+    const nonLues = resultat.docs.filter(d => d.data().read !== true).length;
+    const compteur = element("compteurNotifications");
+    if (compteur) compteur.textContent = String(nonLues);
+  }, erreur => {
+    console.warn("Écoute des notifications indisponible :", erreur);
+  });
 }
 
 async function afficherNotifications() {
