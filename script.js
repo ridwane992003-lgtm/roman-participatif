@@ -870,7 +870,7 @@ async function afficherRomans() {
                 updatedAt: serverTimestamp()
               });
               roman.status = "Published";
-              await notifierAbonnesPublicationRoman(id, roman);
+              await notifierAbonnesRoman(id, "novel", "Un nouveau roman est publié : " + (roman.title || "Sans titre") + ".");
               alert("Ton roman est maintenant publié et visible aux autres lecteurs !");
               await afficherRomans();
             } catch (erreur) {
@@ -1146,19 +1146,13 @@ async function creerNotification(destinataireId, type, texte, chapitreId = "", n
   }
 }
 
-async function notifierAbonnesPublicationRoman(romanId, roman) {
+async function notifierAbonnesRoman(romanId, type, texte, chapterId = "") {
   try {
     const abonnes = await getDocs(collection(db, "novels", romanId, "followers"));
     for (const abonne of abonnes.docs) {
       const donnees = abonne.data();
       if (donnees.notificationsEnabled === true && donnees.userId !== utilisateurActuel?.uid) {
-        await creerNotification(
-          donnees.userId,
-          "novel",
-          "Le roman « " + (roman.title || "Sans titre") + " » vient d'être publié.",
-          "",
-          romanId
-        );
+        await creerNotification(donnees.userId, type, texte, chapterId, romanId);
       }
     }
   } catch (erreur) {
@@ -1354,12 +1348,11 @@ async function afficherChapitresRoman() {
           publier.addEventListener("click", async () => {
             try {
               await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", updatedAt:serverTimestamp()});
-              await creerNotification(
-                romanActuel.authorId,
+              await notifierAbonnesRoman(
+                romanActuel.id,
                 "chapter",
-                "Ton chapitre « " + (chapitre.title || "Sans titre") + " » vient d'être publié dans ton roman « " + (romanActuel.title || "Sans titre") + " ».",
-                chapitre.id,
-                romanActuel.id
+                "Un nouveau chapitre « " + (chapitre.title || "Sans titre") + " » vient d'être publié dans le roman « " + (romanActuel.title || "Sans titre") + " ».",
+                chapitre.id
               );
               await afficherChapitresRoman();
             } catch(e) { console.error(e); alert("Publication impossible."); }
