@@ -310,7 +310,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['recipientId','actorId','actorName','type','text','novelId','chapterId','read','createdAt'])
         && request.resource.data.actorId == request.auth.uid
         && request.resource.data.recipientId is string
-        && (request.resource.data.recipientId != request.auth.uid || request.resource.data.type == 'chapter')
+        && request.resource.data.recipientId != request.auth.uid
         && request.resource.data.actorName is string
         && request.resource.data.type in ['like','comment','reply','chapter','novel']
         && request.resource.data.text is string
