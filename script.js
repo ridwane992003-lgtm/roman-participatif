@@ -870,6 +870,7 @@ async function afficherRomans() {
                 updatedAt: serverTimestamp()
               });
               roman.status = "Published";
+              await notifierAbonnesPublicationRoman(id, roman);
               alert("Ton roman est maintenant publié et visible aux autres lecteurs !");
               await afficherRomans();
             } catch (erreur) {
@@ -1125,8 +1126,8 @@ element("boutonSupprimerCouverture")?.addEventListener("click", async () => {
 element("boutonNotifications")?.addEventListener("click", () => afficherPage("notifications"));
 element("navNotifications")?.addEventListener("click", () => afficherPage("notifications"));
 
-async function creerNotification(destinataireId, type, texte, chapitreId) {
-  if (!destinataireId || destinataireId === utilisateurActuel?.uid) return;
+async function creerNotification(destinataireId, type, texte, chapitreId = "", novelId = "") {
+  if (!destinataireId || destinataireId === utilisateurActuel?.uid || !utilisateurActuel) return;
   try {
     await addDoc(collection(db, "notifications"), {
       recipientId: destinataireId,
@@ -1134,6 +1135,7 @@ async function creerNotification(destinataireId, type, texte, chapitreId) {
       actorName: profilActuel?.username || "Un membre",
       type,
       text: texte,
+      novelId: novelId || "",
       chapterId: chapitreId || "",
       read: false,
       createdAt: serverTimestamp()
@@ -1141,6 +1143,26 @@ async function creerNotification(destinataireId, type, texte, chapitreId) {
     await actualiserCompteurNotifications();
   } catch (erreur) {
     console.error("Notification non enregistrée. Vérifie les règles Firestore :", erreur);
+  }
+}
+
+async function notifierAbonnesPublicationRoman(romanId, roman) {
+  try {
+    const abonnes = await getDocs(collection(db, "novels", romanId, "followers"));
+    for (const abonne of abonnes.docs) {
+      const donnees = abonne.data();
+      if (donnees.notificationsEnabled === true && donnees.userId !== utilisateurActuel?.uid) {
+        await creerNotification(
+          donnees.userId,
+          "novel",
+          "Le roman « " + (roman.title || "Sans titre") + " » vient d'être publié.",
+          "",
+          romanId
+        );
+      }
+    }
+  } catch (erreur) {
+    console.error("Impossible de prévenir les abonnés du roman :", erreur);
   }
 }
 
@@ -1332,6 +1354,13 @@ async function afficherChapitresRoman() {
           publier.addEventListener("click", async () => {
             try {
               await updateDoc(doc(db, "novels", romanActuel.id, "chapters", chapitre.id), {status:"Published", updatedAt:serverTimestamp()});
+              await creerNotification(
+                romanActuel.authorId,
+                "chapter",
+                "Ton chapitre « " + (chapitre.title || "Sans titre") + " » vient d'être publié dans ton roman « " + (romanActuel.title || "Sans titre") + " ».",
+                chapitre.id,
+                romanActuel.id
+              );
               await afficherChapitresRoman();
             } catch(e) { console.error(e); alert("Publication impossible."); }
           });
@@ -1353,8 +1382,18 @@ async function afficherChapitresRoman() {
           boutonLike.disabled = true;
           try {
             const actuel = await getDoc(monLikeRef);
-            if (actuel.exists()) await deleteDoc(monLikeRef);
-            else await setDoc(monLikeRef, {userId:utilisateurActuel.uid, createdAt:serverTimestamp()});
+            if (actuel.exists()) {
+              await deleteDoc(monLikeRef);
+            } else {
+              await setDoc(monLikeRef, {userId:utilisateurActuel.uid, createdAt:serverTimestamp()});
+              await creerNotification(
+                romanActuel.authorId,
+                "like",
+                (profilActuel?.username || "Un membre") + " a aimé le chapitre « " + (chapitre.title || "Sans titre") + " » de ton roman « " + (romanActuel.title || "Sans titre") + " ».",
+                chapitre.id,
+                romanActuel.id
+              );
+            }
             await afficherChapitresRoman();
           } catch(e) { console.error(e); alert("Impossible d'enregistrer ton appréciation."); }
           finally { boutonLike.disabled = false; }
@@ -1391,6 +1430,13 @@ async function afficherChapitresRoman() {
               authorName:profilActuel?.username || "Membre",
               createdAt:serverTimestamp()
             });
+            await creerNotification(
+              romanActuel.authorId,
+              "comment",
+              (profilActuel?.username || "Un membre") + " a commenté le chapitre « " + (chapitre.title || "Sans titre") + " » de ton roman « " + (romanActuel.title || "Sans titre") + " ».",
+              chapitre.id,
+              romanActuel.id
+            );
             await afficherChapitresRoman();
           } catch(err) { console.error(err); alert("Impossible d'envoyer le commentaire."); }
           finally { boutonEnvoyer.disabled = false; }
